@@ -1,0 +1,113 @@
+[build-system]
+requires = ["setuptools>=70.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ncad-mcp-server"
+version = "2.0.0"
+description = "MCP server for nanoCAD automation — 183 tools for 2D/3D drafting, engineering symbols, dimensions, sheet metal, assemblies, IFC, NURBS"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+authors = [{name = "Ivan Vinogradov"}]
+readme = "README.md"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: CAD",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "mcp>=1.0.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "pywin32>=310",
+    "httpx>=0.27.0",
+    "structlog>=24.0.0",
+]
+
+[project.optional-dependencies]
+sse = [
+    "uvicorn>=0.30.0",
+    "starlette>=0.37.0",
+]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=5.0.0",
+    "mypy>=1.10.0",
+    "ruff>=0.5.0",
+    "pytest-mock>=3.14.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/nanoCAD/nanoCAD-MCP"
+Repository = "https://github.com/nanoCAD/nanoCAD-MCP"
+Issues = "https://github.com/nanoCAD/nanoCAD-MCP/issues"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "D",        # docstrings not required yet
+    "ANN101",   # self type hint
+    "ANN102",   # cls type hint
+    "ANN401",   # Any type for dynamic COM
+    "S101",     # asserts in code
+    "S104",     # hardcoded bind all interfaces (SSE server needs 0.0.0.0)
+    "PLR2004",  # magic value comparisons
+    "ERA001",   # commented out code
+    "BLE001",   # blind except in COM bridge (expected)
+    "SLF001",   # private member access in repo
+    "PLW0603",  # global statements in server
+    "FBT001",   # bool positional args
+    "FBT002",   # bool default positional
+    "TRY300",   # try-else pattern
+    "N806",     # non-lowercase variable
+    "E741",     # ambiguous variable name
+    "COM812",   # trailing comma
+    "ARG002",   # unused method arg
+    "TRY401",   # verbose log exception
+    "PLR0913",  # too many args
+    "PERF401",  # manual list comprehension
+    "PLC0415",  # import outside top-level
+    "SIM102",   # collapsible if
+    "G201",     # .exception instead of .error(exc_info)
+    "C901",     # complexity
+    "PLR0911",  # too many returns
+    "PLR0912",  # too many branches
+    "RET504",   # unnecessary assignment
+    "EM101",    # raw string in exception (MCP error messages are clearer inline)
+    "TRY400",   # use logging.exception instead of logging.error
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+strict = true
+python_version = "3.13"
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+ignore_missing_imports = true
+disable_error_code = [
+    "no-any-return",      # HTTP bridge returns dynamic JSON
+    "no-untyped-call",    # MCP library lacks type stubs
+    "untyped-decorator",  # @server.list_tools() etc.
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-v --cov=src --cov-report=term-missing"
+
+[project.scripts]
+ncad-mcp = "src.presentation.server:main"
+

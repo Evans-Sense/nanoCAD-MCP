@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <Configurations>Debug;Release</Configurations>
+    <OutputPath>bin\$(Configuration)</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="hostmgd">
+      <HintPath>$(MSBuildThisFileDirectory)..\..\NC_SDK_RU_26.0.7228.4926.8429\include-x64\hostmgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="hostdbmgd">
+      <HintPath>$(MSBuildThisFileDirectory)..\..\NC_SDK_RU_26.0.7228.4926.8429\include-x64\hostdbmgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="mapimgd">
+      <HintPath>$(MSBuildThisFileDirectory)..\..\NC_SDK_RU_26.0.7228.4926.8429\include-x64\mapimgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="mapinet">
+      <HintPath>$(MSBuildThisFileDirectory)..\..\NC_SDK_RU_26.0.7228.4926.8429\include-x64\mapinet.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="imapimgd">
+      <HintPath>$(MSBuildThisFileDirectory)..\..\NC_SDK_RU_26.0.7228.4926.8429\include-x64\imapimgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="mapibasetypes">
+      <HintPath>$(MSBuildThisFileDirectory)..\..\NC_SDK_RU_26.0.7228.4926.8429\include-x64\mapibasetypes.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="mapibasetypes2">
+      <HintPath>$(MSBuildThisFileDirectory)..\..\NC_SDK_RU_26.0.7228.4926.8429\include-x64\mapibasetypes2.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

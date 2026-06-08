@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <OutputPath>bin\$(Configuration)</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="imapimgd">
+      <HintPath>F:\nanoCAD\NC_SDK_RU_26.0.7228.4926.8429\include-x64\imapimgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="MapiBaseTypes">
+      <HintPath>F:\nanoCAD\NC_SDK_RU_26.0.7228.4926.8429\include-x64\mapibasetypes.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="MapiBaseTypes2">
+      <HintPath>F:\nanoCAD\NC_SDK_RU_26.0.7228.4926.8429\include-x64\mapibasetypes2.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="mapimgd">
+      <HintPath>F:\nanoCAD\NC_SDK_RU_26.0.7228.4926.8429\include-x64\mapimgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="mapiforms">
+      <HintPath>F:\nanoCAD\NC_SDK_RU_26.0.7228.4926.8429\include-x64\mapiforms.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="mapiwpf">
+      <HintPath>F:\nanoCAD\NC_SDK_RU_26.0.7228.4926.8429\include-x64\mapiwpf.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="McUnits">
+      <HintPath>F:\nanoCAD\NC_SDK_RU_26.0.7228.4926.8429\include-x64\McUnits.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="mapinet">
+      <HintPath>F:\nanoCAD\NC_SDK_RU_26.0.7228.4926.8429\include-x64\mapinet.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

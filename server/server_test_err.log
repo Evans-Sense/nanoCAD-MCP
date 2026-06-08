@@ -1,0 +1,4 @@
+2026-06-01 20:12:15,961 [INFO] __main__: [2m2026-06-01T17:12:15.961039Z[0m [[32m[1minfo     [0m] [1mStarting nanoCAD MCP Server   [0m [[0m[1m[34m__main__[0m][0m [36mdebug[0m=[35mTrue[0m
+2026-06-01 20:12:15,998 [DEBUG] mcp.server.lowlevel.server: Initializing server 'ncad-mcp-server'
+2026-06-01 20:12:15,999 [DEBUG] mcp.server.lowlevel.server: Registering handler for ListToolsRequest
+2026-06-01 20:12:15,999 [DEBUG] mcp.server.lowlevel.server: Registering handler for CallToolRequest
