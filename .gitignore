@@ -118,3 +118,9 @@ docs/_build/
 .env
 .env.*
 *.local
+
+# ── OpenCode (local agent config) ────────────────────────────────
+.opencode/
+
+# ── GitHub workflows (removed from repo) ─────────────────────────
+.github/
