@@ -7,13 +7,12 @@ from src.domain.entities import (
     CadArc,
     CadCircle,
     CadColor,
-    CadLine,
     CadLayer,
+    CadLine,
     CadPolyline,
     CadText,
     EntityHandle,
     LayerName,
-    LineType,
     Point2D,
 )
 
@@ -32,7 +31,7 @@ class TestPoint2D:
         assert ys == 2.0
 
     def test_frozen(self) -> None:
-        p = Point2D(x=1.0, y=2.0)
+        Point2D(x=1.0, y=2.0)
         with pytest.raises(ValidationError):
             Point2D(x="not_a_number", y=2.0)  # type: ignore[arg-type]
 

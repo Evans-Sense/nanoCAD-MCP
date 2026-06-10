@@ -6,12 +6,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.domain.entities import (
+    BodyContourRequest,
+    Break2dRequest,
     CadArc,
-    CadBlock,
     CadBlockRef,
     CadCircle,
     CadEllipse,
-    CadEntity,
     CadHatch,
     CadLayer,
     CadLine,
@@ -23,10 +23,18 @@ from src.domain.entities import (
     CadSpline,
     CadText,
     CadXLine,
+    CreateRoomRequest,
+    CustomObjectRequest,
     EntityHandle,
+    GridAxisRequest,
+    GridLabelRequest,
     LayerName,
+    MotionPreviewRequest,
+    ParametricObjectRequest,
     Point2D,
+    ReactorRequest,
 )
+from src.domain.exceptions import NotSupportedError
 from src.infrastructure.cad_repository import CadRepository
 
 
@@ -296,21 +304,21 @@ class TestEntityCreation:
     def test_requires_http_for_advanced(self) -> None:
         repo = CadRepository()
         repo._mode = "com"
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(NotSupportedError):
             repo.create_mtext(
                 CadMText(top_left=Point2D(x=0, y=0), bottom_right=Point2D(x=10, y=10), content="X", height=1)
             )
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(NotSupportedError):
             repo.create_ellipse(CadEllipse(center=Point2D(x=0, y=0), major_axis_end=Point2D(x=5, y=0), radius_ratio=0.5))
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(NotSupportedError):
             repo.create_spline(CadSpline(fit_points=[Point2D(x=0, y=0), Point2D(x=10, y=10)], degree=3))
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(NotSupportedError):
             repo.create_ray(CadRay(start=Point2D(x=0, y=0), direction=Point2D(x=1, y=0)))
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(NotSupportedError):
             repo.create_xline(CadXLine(through=Point2D(x=0, y=0), direction=Point2D(x=1, y=0)))
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(NotSupportedError):
             repo.create_solid(CadSolid(points=[Point2D(x=0, y=0), Point2D(x=10, y=0), Point2D(x=5, y=10)]))
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(NotSupportedError):
             repo.create_hatch(
                 CadHatch(
                     boundaries=[self._fake_boundary()],
@@ -336,7 +344,8 @@ class TestEntityManipulation:
         }
         result = repo.get_entity(EntityHandle(value="H1"))
         assert result is not None
-        assert result is not None and result.handle is not None
+        assert result is not None
+        assert result.handle is not None
         assert result.handle.value == "H1"
 
     def test_get_entity_not_found(self, repo: CadRepository) -> None:
@@ -360,7 +369,7 @@ class TestEntityManipulation:
 
     def test_move_entity_com_fail(self, repo: CadRepository) -> None:
         repo._http.move_entity.return_value = False
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(NotSupportedError):
             repo.move_entity(EntityHandle(value="H1"), 5, 10)
 
     def test_copy_entity(self, repo: CadRepository) -> None:
@@ -391,7 +400,7 @@ class TestEntityManipulation:
     def test_mirror_entity_not_implemented(self) -> None:
         repo = CadRepository()
         repo._mode = "com"
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(NotSupportedError):
             repo.mirror_entity(
                 EntityHandle(value="H1"), Point2D(x=0, y=0), Point2D(x=10, y=0)
             )
@@ -472,7 +481,7 @@ class TestLayerManagement:
     def test_delete_layer_not_implemented(self) -> None:
         repo = CadRepository()
         repo._mode = "com"
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(NotSupportedError):
             repo.delete_layer(LayerName(value="X"))
 
     def test_set_layer_state(self, repo: CadRepository) -> None:
@@ -486,7 +495,7 @@ class TestLayerManagement:
     def test_set_layer_state_not_implemented(self) -> None:
         repo = CadRepository()
         repo._mode = "com"
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(NotSupportedError):
             repo.set_layer_state(LayerName(value="0"), on=False)
 
 
@@ -505,7 +514,7 @@ class TestBlockOps:
     def test_get_blocks_not_implemented(self) -> None:
         repo = CadRepository()
         repo._mode = "com"
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(NotSupportedError):
             repo.get_blocks()
 
     def test_insert_block(self, repo: CadRepository) -> None:
@@ -533,7 +542,7 @@ class TestBlockOps:
             block_name=LayerName(value="X"),
             insertion=Point2D(x=0, y=0),
         )
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(NotSupportedError):
             repo.insert_block(ref)
 
     def test_delete_block(self, repo: CadRepository) -> None:
@@ -543,7 +552,7 @@ class TestBlockOps:
     def test_delete_block_not_implemented(self) -> None:
         repo = CadRepository()
         repo._mode = "com"
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(NotSupportedError):
             repo.delete_block(LayerName(value="X"))
 
 
@@ -613,7 +622,7 @@ class TestDocumentOps:
     def test_export_dwg_not_implemented(self) -> None:
         repo = CadRepository()
         repo._mode = "com"
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(NotSupportedError):
             repo.export_dwg("C:\\out.dwg")
 
     def test_export_dxf(self, repo: CadRepository) -> None:
@@ -651,7 +660,7 @@ class TestDocumentOps:
     def test_new_document_not_implemented(self) -> None:
         repo = CadRepository()
         repo._mode = "com"
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(NotSupportedError):
             repo.new_document()
 
     def test_open_document(self, repo: CadRepository) -> None:
@@ -661,7 +670,7 @@ class TestDocumentOps:
     def test_open_document_not_implemented(self) -> None:
         repo = CadRepository()
         repo._mode = "com"
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(NotSupportedError):
             repo.open_document("C:\\x.dwg")
 
 
@@ -677,7 +686,7 @@ class TestSystemOps:
     def test_execute_command_not_implemented(self) -> None:
         repo = CadRepository()
         repo._mode = "com"
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(NotSupportedError):
             repo.execute_command("_LINE")
 
     def test_get_system_variable_http(self, repo: CadRepository) -> None:
@@ -702,6 +711,479 @@ class TestSystemOps:
         repo.set_system_variable("CMDECHO", "0")
         repo._http.set_system_variable.assert_called_once_with("CMDECHO", "0")
         repo._com.com_set_system_variable.assert_called_once_with("CMDECHO", "0")
+
+
+# ── Extended HTTP-only operations ──────────────────────────────
+
+
+class TestExtendedHttpOperations:
+    """Test delegate methods that call _http directly without mode guards."""
+
+    @pytest.mark.parametrize(
+        ("method", "kwargs"),
+        [
+            ("create_helix", {"axis": (0, 0, 1), "radius": 5}),
+            ("create_region", {"boundary": [(0, 0), (10, 0), (10, 10)]}),
+            ("create_boundary", {"points": [(0, 0), (10, 0)]}),
+            ("create_gradient", {"color1": "red", "color2": "blue"}),
+            ("create_arc_length_dimension", {"arc_handle": "H1", "text": "10"}),
+            ("export_ifc", {"path": "out.ifc"}),
+            ("create_mesh", {"vertices": [(0, 0, 0), (1, 0, 0)]}),
+            ("edit_mesh", {"handle": "H1", "vertices": [(0, 0, 0)]}),
+            ("set_viewport", {"view": "top"}),
+            ("render", {"output": "render.png"}),
+        ],
+    )
+    def test_delegate_method(
+        self, repo: CadRepository, method: str, kwargs: dict[str, Any]
+    ) -> None:
+        """Extended HTTP methods delegate to self._http and return its result."""
+        expected = f"{method}_result"
+        getattr(repo._http, method).return_value = expected
+        result = getattr(repo, method)(**kwargs)
+        assert result == expected
+        getattr(repo._http, method).assert_called_once_with(**kwargs)
+
+    def test_delegate_method_no_http(self) -> None:
+        """When _http is None, delegate methods return None."""
+        r = CadRepository()
+        r._http = None
+        assert r.create_helix(axis=(0, 0, 1), radius=5) is None
+        assert r.create_region(boundary=[]) is None
+        assert r.create_boundary(points=[]) is None
+        assert r.create_gradient(color1="", color2="") is None
+        assert r.create_arc_length_dimension(arc_handle="", text="") is None
+        assert r.export_ifc(path="") is None
+        assert r.create_mesh(vertices=[]) is None
+        assert r.edit_mesh(handle="", vertices=[]) is None
+        assert r.set_viewport(view="") is None
+        assert r.render(output="") is None
+
+
+class TestSolidHttpSuccess:
+    """Test solid methods in HTTP (full) mode."""
+
+    def test_create_box(self, repo: CadRepository) -> None:
+        repo._http.create_box.return_value = "H_BOX"
+        result = repo.create_box(10, 20, 30)
+        assert result == "H_BOX"
+        repo._http.create_box.assert_called_once_with(10, 20, 30)
+
+    def test_create_sphere(self, repo: CadRepository) -> None:
+        repo._http.create_sphere.return_value = "H_SPH"
+        result = repo.create_sphere(5)
+        assert result == "H_SPH"
+        repo._http.create_sphere.assert_called_once_with(5)
+
+    def test_create_cylinder(self, repo: CadRepository) -> None:
+        repo._http.create_cylinder.return_value = "H_CYL"
+        result = repo.create_cylinder(3, 10)
+        assert result == "H_CYL"
+        repo._http.create_cylinder.assert_called_once_with(3, 10)
+
+    def test_create_cone(self, repo: CadRepository) -> None:
+        repo._http.create_cone.return_value = "H_CONE"
+        result = repo.create_cone(5, 12)
+        assert result == "H_CONE"
+        repo._http.create_cone.assert_called_once_with(5, 12)
+
+    def test_create_torus(self, repo: CadRepository) -> None:
+        repo._http.create_torus.return_value = "H_TOR"
+        result = repo.create_torus(10, 2)
+        assert result == "H_TOR"
+        repo._http.create_torus.assert_called_once_with(10, 2)
+
+    def test_create_wedge(self, repo: CadRepository) -> None:
+        repo._http.create_wedge.return_value = "H_WED"
+        result = repo.create_wedge(10, 20, 30)
+        assert result == "H_WED"
+        repo._http.create_wedge.assert_called_once_with(10, 20, 30)
+
+    def test_create_pyramid(self, repo: CadRepository) -> None:
+        repo._http.create_pyramid.return_value = "H_PYR"
+        result = repo.create_pyramid(height=10, sides=4, radius=5)
+        assert result == "H_PYR"
+        repo._http.create_pyramid.assert_called_once_with(10, 4, 5)
+
+    def test_boolean_union(self, repo: CadRepository) -> None:
+        repo._http.boolean_union.return_value = "H_BOOL"
+        result = repo.boolean_union("H1", "H2")
+        assert result == "H_BOOL"
+        repo._http.boolean_union.assert_called_once_with("H1", "H2")
+
+    def test_boolean_subtract(self, repo: CadRepository) -> None:
+        repo._http.boolean_subtract.return_value = "H_BOOL"
+        result = repo.boolean_subtract("H1", "H2")
+        assert result == "H_BOOL"
+        repo._http.boolean_subtract.assert_called_once_with("H1", "H2")
+
+    def test_boolean_intersect(self, repo: CadRepository) -> None:
+        repo._http.boolean_intersect.return_value = "H_BOOL"
+        result = repo.boolean_intersect("H1", "H2")
+        assert result == "H_BOOL"
+        repo._http.boolean_intersect.assert_called_once_with("H1", "H2")
+
+    def test_extrude_solid(self, repo: CadRepository) -> None:
+        repo._http.extrude_solid.return_value = "H_EXTR"
+        result = repo.extrude_solid("H1", 10, taper_angle=5)
+        assert result == "H_EXTR"
+        repo._http.extrude_solid.assert_called_once_with("H1", 10, 5)
+
+
+class TestSolidOperationsHttp:
+    """Test solid manipulation operations in HTTP mode."""
+
+    def test_revolve_solid(self, repo: CadRepository) -> None:
+        repo._http.revolve_solid.return_value = "H_REV"
+        result = repo.revolve_solid(
+            "H1", axis_x=0, axis_y=0, axis_z=0,
+            dir_x=0, dir_y=0, dir_z=1, angle=180,
+        )
+        assert result == "H_REV"
+        repo._http.revolve_solid.assert_called_once_with("H1", 0, 0, 0, 0, 0, 1, 180)
+
+    def test_move_solid(self, repo: CadRepository) -> None:
+        repo._http.move_solid.return_value = True
+        assert repo.move_solid("H1", 5, 10, 0) is True
+        repo._http.move_solid.assert_called_once_with("H1", 5, 10, 0)
+
+    def test_set_3d_view(self, repo: CadRepository) -> None:
+        repo._http.set_3d_view.return_value = True
+        assert repo.set_3d_view("top", "wireframe") is True
+        repo._http.set_3d_view.assert_called_once_with("top", "wireframe")
+
+    def test_get_solid_properties(self, repo: CadRepository) -> None:
+        expected = {"volume": 100.0}
+        repo._http.get_solid_properties.return_value = expected
+        result = repo.get_solid_properties("H1")
+        assert result == expected
+        repo._http.get_solid_properties.assert_called_once_with("H1")
+
+
+class TestNurbIfcOperations:
+    """Test NURBS and IFC operations in HTTP mode."""
+
+    def test_create_nurb_curve(self, repo: CadRepository) -> None:
+        from src.domain.entities import CreateNurbCurveRequest
+        repo._http.create_nurb_curve.return_value = {"handle": "NC_001"}
+        request = CreateNurbCurveRequest(
+            control_points=[[0, 0, 0], [10, 10, 0]],
+            knots=[0, 0, 0, 0.5, 1, 1, 1],
+            degree=3,
+        )
+        result = repo.create_nurb_curve(request)
+        assert result is not None
+        assert str(result) == "NC_001"
+
+    def test_create_nurb_curve_no_handle(self, repo: CadRepository) -> None:
+        from src.domain.entities import CreateNurbCurveRequest
+        repo._http.create_nurb_curve.return_value = {}
+        request = CreateNurbCurveRequest(
+            control_points=[[0, 0, 0]],
+            knots=[0, 0, 0, 1, 1, 1],
+        )
+        assert repo.create_nurb_curve(request) is None
+
+    def test_create_nurb_surface(self, repo: CadRepository) -> None:
+        from src.domain.entities import CreateNurbSurfaceRequest
+        repo._http.create_nurb_surface.return_value = {"handle": "NS_001"}
+        request = CreateNurbSurfaceRequest(
+            control_points=[[0, 0, 0], [10, 0, 0], [0, 10, 0], [10, 10, 0]],
+            u_knots=[0, 0, 0, 1, 1, 1],
+            v_knots=[0, 0, 0, 1, 1, 1],
+            num_control_u=2,
+            num_control_v=2,
+        )
+        result = repo.create_nurb_surface(request)
+        assert result is not None
+        assert str(result) == "NS_001"
+
+    def test_modify_nurb_success(self, repo: CadRepository) -> None:
+        from src.domain.entities import ModifyNurbRequest
+        repo._http.modify_nurb.return_value = {}
+        request = ModifyNurbRequest(
+            handle="NC_001",
+            fit_points=[(0, 0, 0)],
+        )
+        assert repo.modify_nurb(request) is True
+
+    def test_modify_nurb_failure(self, repo: CadRepository) -> None:
+        from src.domain.entities import ModifyNurbRequest
+        repo._http.modify_nurb.return_value = None
+        request = ModifyNurbRequest(handle="NC_001")
+        assert repo.modify_nurb(request) is False
+
+    def test_import_ifc(self, repo: CadRepository) -> None:
+        repo._http.import_ifc.return_value = True
+        assert repo.import_ifc("model.ifc") is True
+        repo._http.import_ifc.assert_called_once_with(path="model.ifc")
+
+    def test_get_ifc_entities(self, repo: CadRepository) -> None:
+        expected = [{"type": "IfcWall", "handle": "W1"}]
+        repo._http.get_ifc_entities.return_value = expected
+        result = repo.get_ifc_entities()
+        assert result == expected
+        repo._http.get_ifc_entities.assert_called_once()
+
+
+class TestProjectOperations:
+    """Test project creation and save operations."""
+
+    def test_create_project_success(self, repo: CadRepository) -> None:
+        repo._http.create_project.return_value = True
+        with patch("src.infrastructure.cad_repository.validate_project_path") as mock_val:
+            mock_val.return_value = "C:\\projects\\test.ncproj"
+            repo.create_project(filename="test.ncproj", directory="C:\\projects")
+        repo._http.create_project.assert_called_once_with(
+            filename="test.ncproj", directory="C:\\projects", template=None
+        )
+
+    def test_create_project_with_template(self, repo: CadRepository) -> None:
+        repo._http.create_project.return_value = True
+        with patch("src.infrastructure.cad_repository.validate_project_path") as mock_val:
+            mock_val.return_value = "C:\\projects\\test.ncproj"
+            repo.create_project(
+                filename="test.ncproj", directory="C:\\projects",
+                template="template.dwt",
+            )
+        repo._http.create_project.assert_called_once_with(
+            filename="test.ncproj", directory="C:\\projects", template="template.dwt"
+        )
+
+    def test_create_project_failure(self, repo: CadRepository) -> None:
+        repo._http.create_project.return_value = False
+        with patch("src.infrastructure.cad_repository.validate_project_path") as mock_val:
+            mock_val.return_value = "C:\\projects\\test.ncproj"
+            with pytest.raises(RuntimeError, match="create_project failed"):
+                repo.create_project(filename="test.ncproj", directory="C:\\projects")
+
+    def test_create_project_empty_filename(self, repo: CadRepository) -> None:
+        with pytest.raises(ValueError, match="filename is required"):
+            repo.create_project(filename="", directory="C:\\projects")
+
+    def test_create_project_empty_directory(self, repo: CadRepository) -> None:
+        with pytest.raises(ValueError, match="directory is required"):
+            repo.create_project(filename="test.ncproj", directory="")
+
+    def test_create_project_not_supported(self) -> None:
+        r = CadRepository()
+        r._mode = "com"
+        with pytest.raises(NotSupportedError, match=r"requires .NET engine"):
+            r.create_project(filename="x", directory="C:\\")
+
+    def test_save_project_success(self, repo: CadRepository) -> None:
+        repo._http.save_project.return_value = True
+        with patch("src.infrastructure.cad_repository.validate_project_path") as mock_val:
+            mock_val.return_value = "C:\\projects\\out.ncproj"
+            repo.save_project(filename="out.ncproj", directory="C:\\projects")
+        repo._http.save_project.assert_called_once_with(
+            filename="out.ncproj", directory="C:\\projects"
+        )
+
+    def test_save_project_failure(self, repo: CadRepository) -> None:
+        repo._http.save_project.return_value = False
+        with patch("src.infrastructure.cad_repository.validate_project_path") as mock_val:
+            mock_val.return_value = "C:\\projects\\out.ncproj"
+            with pytest.raises(RuntimeError, match="save_project failed"):
+                repo.save_project(filename="out.ncproj", directory="C:\\projects")
+
+    def test_save_project_empty_filename(self, repo: CadRepository) -> None:
+        with pytest.raises(ValueError, match="filename is required"):
+            repo.save_project(filename="", directory="C:\\projects")
+
+    def test_save_project_empty_directory(self, repo: CadRepository) -> None:
+        with pytest.raises(ValueError, match="directory is required"):
+            repo.save_project(filename="out.ncproj", directory="")
+
+    def test_save_project_not_supported(self) -> None:
+        r = CadRepository()
+        r._mode = "com"
+        with pytest.raises(NotSupportedError, match=r"requires .NET engine"):
+            r.save_project(filename="x", directory="C:\\")
+
+
+class TestMiscOperations:
+    """Test remaining uncovered operations."""
+
+    def test_close_document(self, repo: CadRepository) -> None:
+        repo._http._request.return_value = {"success": True}
+        repo.close_document()
+        repo._http._request.assert_called_once_with("POST", "/api/document/close")
+
+    def test_close_document_not_supported(self) -> None:
+        r = CadRepository()
+        r._mode = "com"
+        with pytest.raises(NotSupportedError, match=r"requires .NET engine"):
+            r.close_document()
+
+    def test_get_system_fonts_full(self, repo: CadRepository) -> None:
+        expected = [{"name": "Arial", "family": "sans"}]
+        repo._http.get_system_fonts.return_value = expected
+        result = repo.get_system_fonts()
+        assert result == expected
+
+    def test_get_system_fonts_not_full(self) -> None:
+        r = CadRepository()
+        r._mode = "com"
+        assert r.get_system_fonts() == []
+
+
+# ── MultiCAD API operations ─────────────────────────────────────
+
+
+class TestMultiCadApi:
+    """Test MultiCAD API operations in full and non-full modes."""
+
+    def test_create_grid_axis_full(self, repo: CadRepository) -> None:
+        repo._http.create_grid_axis.return_value = True
+        request = GridAxisRequest()
+        assert repo.create_grid_axis(request) is True
+        repo._http.create_grid_axis.assert_called_once_with(
+            grid_type="rect",
+            origin_x=0,
+            origin_y=0,
+            spacings_x=[1000.0],
+            spacings_y=[1000.0],
+            naming_x="1,2,3...",
+            naming_y="A,B,C...",
+        )
+
+    def test_create_grid_axis_non_full(self) -> None:
+        r = CadRepository()
+        r._mode = "com"
+        assert r.create_grid_axis(GridAxisRequest()) is False
+
+    def test_create_grid_label_full(self, repo: CadRepository) -> None:
+        repo._http.create_grid_label.return_value = True
+        request = GridLabelRequest(grid_handle="G1", label="A")
+        assert repo.create_grid_label(request) is True
+        repo._http.create_grid_label.assert_called_once_with(
+            grid_handle="G1", label="A", axis_index=0, direction="x"
+        )
+
+    def test_create_grid_label_non_full(self) -> None:
+        r = CadRepository()
+        r._mode = "com"
+        assert r.create_grid_label(GridLabelRequest(grid_handle="G1", label="A")) is False
+
+    def test_create_room_full(self, repo: CadRepository) -> None:
+        repo._http.create_room.return_value = True
+        request = CreateRoomRequest(x=100, y=200, width=500, height=300, name="Office")
+        assert repo.create_room(request) is True
+        repo._http.create_room.assert_called_once_with(
+            x=100, y=200, width=500, height=300, name="Office"
+        )
+
+    def test_create_room_non_full(self) -> None:
+        r = CadRepository()
+        r._mode = "com"
+        assert r.create_room(CreateRoomRequest()) is False
+
+    def test_get_room_properties_full(self, repo: CadRepository) -> None:
+        expected = {"name": "Office", "area": 150000.0}
+        repo._http.get_room_properties.return_value = expected
+        result = repo.get_room_properties("H1")
+        assert result == expected
+        repo._http.get_room_properties.assert_called_once_with(handle="H1")
+
+    def test_get_room_properties_non_full(self) -> None:
+        r = CadRepository()
+        r._mode = "com"
+        assert r.get_room_properties("H1") is None
+
+    def test_create_custom_object_full(self, repo: CadRepository) -> None:
+        repo._http.create_custom_object.return_value = True
+        request = CustomObjectRequest(class_name="MyClass", properties={"key": "val"})
+        assert repo.create_custom_object(request) is True
+        repo._http.create_custom_object.assert_called_once_with(
+            class_name="MyClass", properties={"key": "val"}
+        )
+
+    def test_create_custom_object_non_full(self) -> None:
+        r = CadRepository()
+        r._mode = "com"
+        assert r.create_custom_object(CustomObjectRequest(class_name="X")) is False
+
+    def test_create_parametric_object_full(self, repo: CadRepository) -> None:
+        repo._http.create_parametric_object.return_value = True
+        request = ParametricObjectRequest(type="gear", parameters={"teeth": 12})
+        assert repo.create_parametric_object(request) is True
+        repo._http.create_parametric_object.assert_called_once_with(
+            object_type="gear", parameters={"teeth": 12}
+        )
+
+    def test_create_parametric_object_non_full(self) -> None:
+        r = CadRepository()
+        r._mode = "com"
+        assert r.create_parametric_object(ParametricObjectRequest(type="x")) is False
+
+    def test_create_reactor_full(self, repo: CadRepository) -> None:
+        repo._http.create_reactor.return_value = True
+        request = ReactorRequest(entity_handle="H1", event_type="modified")
+        assert repo.create_reactor(request) is True
+        repo._http.create_reactor.assert_called_once_with(
+            entity_handle="H1", event_type="modified"
+        )
+
+    def test_create_reactor_non_full(self) -> None:
+        r = CadRepository()
+        r._mode = "com"
+        assert r.create_reactor(ReactorRequest(entity_handle="H1")) is False
+
+    def test_create_2d_break_full(self, repo: CadRepository) -> None:
+        repo._http.create_2d_break.return_value = True
+        request = Break2dRequest(view_handle="V1", x1=0, y1=0, x2=100, y2=100)
+        assert repo.create_2d_break(request) is True
+        repo._http.create_2d_break.assert_called_once_with(
+            view_handle="V1", x1=0, y1=0, x2=100, y2=100
+        )
+
+    def test_create_2d_break_non_full(self) -> None:
+        r = CadRepository()
+        r._mode = "com"
+        assert r.create_2d_break(Break2dRequest(view_handle="V1")) is False
+
+    def test_start_motion_preview_full(self, repo: CadRepository) -> None:
+        repo._http.start_motion_preview.return_value = True
+        assert repo.start_motion_preview(MotionPreviewRequest(handle="H1")) is True
+        repo._http.start_motion_preview.assert_called_once_with(handle="H1")
+
+    def test_start_motion_preview_non_full(self) -> None:
+        r = CadRepository()
+        r._mode = "com"
+        assert r.start_motion_preview(MotionPreviewRequest(handle="H1")) is False
+
+    def test_stop_motion_preview_full(self, repo: CadRepository) -> None:
+        repo._http.stop_motion_preview.return_value = True
+        assert repo.stop_motion_preview() is True
+        repo._http.stop_motion_preview.assert_called_once()
+
+    def test_stop_motion_preview_non_full(self) -> None:
+        r = CadRepository()
+        r._mode = "com"
+        assert r.stop_motion_preview() is False
+
+    def test_create_body_contour_full(self, repo: CadRepository) -> None:
+        repo._http.create_body_contour.return_value = True
+        assert repo.create_body_contour(BodyContourRequest(solid_handle="S1")) is True
+        repo._http.create_body_contour.assert_called_once_with(solid_handle="S1")
+
+    def test_create_body_contour_non_full(self) -> None:
+        r = CadRepository()
+        r._mode = "com"
+        assert r.create_body_contour(BodyContourRequest(solid_handle="S1")) is False
+
+    def test_check_3d_faces_full(self, repo: CadRepository) -> None:
+        expected = {"faces": 12, "errors": []}
+        repo._http.check_3d_faces.return_value = expected
+        result = repo.check_3d_faces("H1")
+        assert result == expected
+        repo._http.check_3d_faces.assert_called_once_with(handle="H1")
+
+    def test_check_3d_faces_non_full(self) -> None:
+        r = CadRepository()
+        r._mode = "com"
+        assert r.check_3d_faces("H1") is None
 
 
 # ── EntityHandle helper ──────────────────────────────────────────

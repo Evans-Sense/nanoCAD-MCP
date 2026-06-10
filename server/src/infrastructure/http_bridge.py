@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
 import httpx
+import psutil
+
+from src.domain.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -13,21 +17,67 @@ DEFAULT_ENGINE_PORT = 5080
 HEALTH_CHECK_TIMEOUT = 2.0  # seconds
 REQUEST_TIMEOUT = 30.0  # seconds for long operations
 
+# Default base directory for project files (override via env var)
+DEFAULT_DATA_DIR = str(Path.home() / "Documents" / "nanoCAD_MCP")
+
 
 def _read_port_file() -> int | None:
     """Read the engine port from a well-known temp file.
 
-    The .NET plugin writes its listening port to %TEMP%\\ncad-mcp-port.txt
-    for auto-discovery.
+    Format: ``PORT:PID`` — PID is validated to prevent TOCTOU / stale files.
     """
     port_file = Path.home() / "AppData" / "Local" / "Temp" / "ncad-mcp-port.txt"
     try:
-        if port_file.exists():
-            text = port_file.read_text().strip()
-            return int(text)
-    except (ValueError, OSError) as e:
+        if not port_file.exists():
+            return None
+        text = port_file.read_text(encoding="utf-8", errors="ignore").strip()
+        parts = text.split(":")
+        port = int(parts[0])
+        if len(parts) > 1:
+            pid = int(parts[1])
+            if not psutil.pid_exists(pid):
+                logger.warning("Port file %s references dead PID %d, removing", port_file, pid)
+                port_file.unlink(missing_ok=True)
+                return None
+        return port
+    except (ValueError, OSError, psutil.Error) as e:
         logger.warning("Cannot read port file %s: %s", port_file, e)
     return None
+
+
+def validate_project_path(directory: str, filename: str | None = None) -> str:
+    """Validate and normalise a project path against a safe base directory.
+
+    Raises ``ValidationError`` on path traversal attempts.
+
+    Returns a forward-slash path safe for JSON transport.
+    """
+    base = Path(os.getenv("NANOCAD_MCP_DATA_DIR", DEFAULT_DATA_DIR)).resolve()
+    raw = directory.replace(chr(92), "/").strip("/")
+    resolved = (base / raw).resolve()
+
+    if not str(resolved).startswith(str(base)):
+        raise ValidationError(
+            f"Path traversal blocked: {directory} escapes base directory {base}"
+        )
+    if filename:
+        if ".." in filename or "/" in filename or chr(92) in filename:
+            raise ValidationError(f"Invalid filename: {filename}")
+        resolved = resolved / filename
+
+    return str(resolved).replace(chr(92), "/")
+
+
+def validate_file_path(path: str) -> str:
+    """Validate a single file path against path traversal.
+
+    Raises ``ValidationError`` if the path contains traversal sequences.
+    Returns the normalised forward-slash path.
+    """
+    p = Path(path).resolve()
+    if ".." in str(p):
+        raise ValidationError(f"Path traversal blocked: {path}")
+    return str(p).replace(chr(92), "/")
 
 
 class HttpCadBridge:
@@ -216,25 +266,29 @@ class HttpCadBridge:
 
         Args:
             filename: Project filename (with or without .dwg extension).
-            directory: Target directory (absolute path). Auto-normalized to
-                forward slashes.
+            directory: Target directory. Validated against path traversal.
+
+        Raises:
+            ValidationError: If path escapes the safe base directory.
         """
         if not filename.lower().endswith(".dwg"):
             filename = f"{filename}.dwg"
-        full_path = f"{directory.rstrip('/').rstrip(chr(92))}/{filename}"
-        full_path = full_path.replace(chr(92), "/")
+        full_path = validate_project_path(directory, filename)
         return self.save_document(full_path)
 
     def export_pdf(self, path: str) -> bool:
-        result = self._request("POST", "/api/document/export/pdf", json_body={"path": path})
+        safe = validate_file_path(path)
+        result = self._request("POST", "/api/document/export/pdf", json_body={"path": safe})
         return result is not None
 
     def export_dwg(self, path: str) -> bool:
-        result = self._request("POST", "/api/document/export/dwg", json_body={"path": path})
+        safe = validate_file_path(path)
+        result = self._request("POST", "/api/document/export/dwg", json_body={"path": safe})
         return result is not None
 
     def export_dxf(self, path: str) -> bool:
-        result = self._request("POST", "/api/document/export/dxf", json_body={"path": path})
+        safe = validate_file_path(path)
+        result = self._request("POST", "/api/document/export/dxf", json_body={"path": safe})
         return result is not None
 
     def zoom_extents(self) -> bool:
@@ -447,10 +501,11 @@ class HttpCadBridge:
         )
 
     def export_ifc(self, path: str) -> dict[str, Any] | None:
+        safe = validate_file_path(path)
         return self._request(
             "POST",
             "/api/document/export/ifc",
-            json_body={"path": path},
+            json_body={"path": safe},
         )
 
     def boolean_union(self, h1: str, h2: str) -> str | None:
@@ -1059,11 +1114,13 @@ class HttpCadBridge:
         return result is not None
 
     def import_step(self, path: str) -> bool:
-        result = self._request("POST", "/api/document/import/step", json_body={"path": path})
+        safe = validate_file_path(path)
+        result = self._request("POST", "/api/document/import/step", json_body={"path": safe})
         return result is not None
 
     def export_step(self, path: str) -> bool:
-        result = self._request("POST", "/api/document/export/step", json_body={"path": path})
+        safe = validate_file_path(path)
+        result = self._request("POST", "/api/document/export/step", json_body={"path": safe})
         return result is not None
 
     # -- Block Create/Explode --
@@ -1122,14 +1179,16 @@ class HttpCadBridge:
 
         Args:
             template: Optional .dwt template path.
-            save_path: Optional full file path (e.g. ``C:/Projects/foo.dwg``) to
-                save the new document to immediately after creation.
+            save_path: Optional full file path. Validated against path traversal.
+
+        Raises:
+            ValidationError: If path escapes the safe base directory.
         """
         body: dict[str, Any] = {}
         if template:
-            body["template"] = template
+            body["template"] = validate_file_path(template)
         if save_path:
-            body["save_path"] = save_path
+            body["save_path"] = validate_file_path(save_path)
         result = self._request("POST", "/api/document/new", json_body=body)
         return result is not None
 
@@ -1143,21 +1202,22 @@ class HttpCadBridge:
 
         Args:
             filename: Project filename (with or without .dwg extension).
-            directory: Target directory (absolute path). Auto-normalized to
-                forward slashes (avoids JSON escape issues).
+            directory: Target directory. Validated against path traversal.
             template: Optional .dwt template path.
 
         Returns True if the project was created and saved.
+
+        Raises:
+            ValidationError: If path escapes the safe base directory.
         """
         if not filename.lower().endswith(".dwg"):
             filename = f"{filename}.dwg"
-        # Normalize: use forward slashes to avoid JSON escaping issues
-        full_path = f"{directory.rstrip('/').rstrip(chr(92))}/{filename}"
-        full_path = full_path.replace(chr(92), "/")
+        full_path = validate_project_path(directory, filename)
         return self.new_document(template=template, save_path=full_path)
 
     def open_document(self, path: str) -> bool:
-        result = self._request("POST", "/api/document/open", json_body={"path": path})
+        safe = validate_file_path(path)
+        result = self._request("POST", "/api/document/open", json_body={"path": safe})
         return result is not None
 
     def close_document(self) -> bool:
@@ -1260,19 +1320,23 @@ class HttpCadBridge:
         )
         return result is not None
 
-    def fillet_edge(self, handle: str, radius: float = 5.0) -> bool:
+    def fillet_edge(self, handle: str, radius: float = 5.0) -> str | None:
         result = self._request(
             "POST", "/api/solid/filletedge", json_body={"handle": handle, "radius": radius}
         )
-        return result is not None
+        if result and result.get("success"):
+            return result.get("handle") or None
+        return None
 
-    def chamfer_edge(self, handle: str, dist1: float = 5.0, dist2: float = 5.0) -> bool:
+    def chamfer_edge(self, handle: str, dist1: float = 5.0, dist2: float = 5.0) -> str | None:
         result = self._request(
             "POST",
             "/api/solid/chamferedge",
             json_body={"handle": handle, "dist1": dist1, "dist2": dist2},
         )
-        return result is not None
+        if result and result.get("success"):
+            return result.get("handle") or None
+        return None
 
     # -- Assembly --
     def insert_part(self, block_name: str, x: float, y: float, z: float) -> bool:

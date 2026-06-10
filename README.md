@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://img.shields.io/badge/tests-777%20unit%20%2B%20222%20integration-green.svg)]()
+[![Tests](https://img.shields.io/badge/tests-923%20unit%20%2B%2019%20contract-green.svg)]()
 
 **MCP-сервер для автоматизации nanoCAD 26** — 183 инструмента для 2D/3D черчения,
 инженерных символов, размеров, листового металла, сборок и MultiCAD API.
@@ -175,12 +175,12 @@ py server/scripts/demo_bracket.py
 
 | Вид тестов | Количество | Статус |
 |-----------|:----------:|:------:|
-| Unit-тесты (mocked HTTP) | 777 | ✅ Pass |
+| Unit-тесты (mocked HTTP) | 923 | ✅ Pass |
+| Contract-тесты (MCP протокол) | 19 | ✅ Pass |
 | Интеграционные (живой nanoCAD) | 189 (+33 skipped) | ✅ Pass |
-| MCP server (полный chain) | 51 | ✅ Pass |
 | Типы (mypy --strict) | 17 файлов | ✅ Clean |
 | Линтер (ruff) | — | ✅ Clean |
-| Покрытие Python-кода | 81% | ✅ |
+| Покрытие Python-кода | 86% | ✅ |
 
 ## 🔌 Архитектура
 

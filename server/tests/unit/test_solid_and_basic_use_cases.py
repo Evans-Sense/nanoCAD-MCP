@@ -12,237 +12,222 @@ from src.application.use_cases import (
 )
 from src.domain.entities import CadBlock, EntityHandle, LayerName, Point2D
 
-
 # ── SolidUseCase ────────────────────────────────────────────
 
 
 class TestSolidUseCase:
     @pytest.fixture
-    def mock_http(self) -> MagicMock:
-        http = MagicMock()
-        http.is_available = True
-        return http
+    def mock_solid_repo(self) -> MagicMock:
+        return MagicMock()
 
-    @pytest.fixture
-    def mock_repo_with_http(self, mock_http: MagicMock) -> MagicMock:
-        repo = MagicMock()
-        repo._http = mock_http
-        return repo
-
-    def test_requires_http(self) -> None:
-        repo = MagicMock()
-        repo._http = None
-        with pytest.raises(RuntimeError, match="requires a CadRepository"):
-            SolidUseCase(repo)
-
-    def test_create_box(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.create_box.return_value = "BOX_001"
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_create_box(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.create_box.return_value = "BOX_001"
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.create_box(x=10, y=20, z=30)
         assert result["handle"] == "BOX_001"
         assert result["type"] == "BOX"
-        mock_http.create_box.assert_called_once_with(10, 20, 30)
+        mock_solid_repo.create_box.assert_called_once_with(10, 20, 30)
 
-    def test_create_box_failure(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.create_box.return_value = None
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_create_box_failure(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.create_box.return_value = None
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.create_box(x=10, y=20, z=30)
         assert "error" in result
 
-    def test_create_sphere(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.create_sphere.return_value = "SPH_001"
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_create_sphere(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.create_sphere.return_value = "SPH_001"
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.create_sphere(radius=15.0)
         assert result["handle"] == "SPH_001"
         assert result["type"] == "SPHERE"
 
-    def test_create_sphere_failure(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.create_sphere.return_value = None
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_create_sphere_failure(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.create_sphere.return_value = None
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.create_sphere(radius=15.0)
         assert "error" in result
 
-    def test_create_cylinder(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.create_cylinder.return_value = "CYL_001"
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_create_cylinder(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.create_cylinder.return_value = "CYL_001"
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.create_cylinder(radius=5.0, height=20.0)
         assert result["handle"] == "CYL_001"
         assert result["type"] == "CYLINDER"
 
-    def test_create_cylinder_failure(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.create_cylinder.return_value = None
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_create_cylinder_failure(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.create_cylinder.return_value = None
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.create_cylinder(radius=5.0, height=20.0)
         assert "error" in result
 
-    def test_create_cone(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.create_cone.return_value = "CONE_001"
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_create_cone(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.create_cone.return_value = "CONE_001"
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.create_cone(radius_bottom=5.0, height=15.0)
         assert result["handle"] == "CONE_001"
         assert result["type"] == "CONE"
 
-    def test_create_cone_failure(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.create_cone.return_value = None
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_create_cone_failure(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.create_cone.return_value = None
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.create_cone(radius_bottom=5.0, height=15.0)
         assert "error" in result
 
-    def test_create_torus(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.create_torus.return_value = "TOR_001"
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_create_torus(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.create_torus.return_value = "TOR_001"
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.create_torus(major_radius=20.0, minor_radius=5.0)
         assert result["handle"] == "TOR_001"
         assert result["type"] == "TORUS"
 
-    def test_create_torus_failure(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.create_torus.return_value = None
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_create_torus_failure(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.create_torus.return_value = None
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.create_torus(major_radius=20.0, minor_radius=5.0)
         assert "error" in result
 
-    def test_create_wedge(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.create_wedge.return_value = "WDG_001"
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_create_wedge(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.create_wedge.return_value = "WDG_001"
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.create_wedge(x=10, y=20, z=30)
         assert result["handle"] == "WDG_001"
         assert result["type"] == "WEDGE"
 
-    def test_create_wedge_failure(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.create_wedge.return_value = None
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_create_wedge_failure(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.create_wedge.return_value = None
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.create_wedge(x=10, y=20, z=30)
         assert "error" in result
 
-    def test_create_pyramid(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.create_pyramid.return_value = "PYR_001"
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_create_pyramid(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.create_pyramid.return_value = "PYR_001"
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.create_pyramid(height=25.0, sides=6, radius=10.0)
         assert result["handle"] == "PYR_001"
         assert result["type"] == "PYRAMID"
 
-    def test_create_pyramid_failure(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.create_pyramid.return_value = None
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_create_pyramid_failure(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.create_pyramid.return_value = None
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.create_pyramid(height=25.0, sides=6, radius=10.0)
         assert "error" in result
 
-    def test_boolean_union(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.boolean_union.return_value = "BOOL_001"
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_boolean_union(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.boolean_union.return_value = "BOOL_001"
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.boolean_union(handle1="BOX_1", handle2="BOX_2")
         assert result["handle"] == "BOOL_001"
         assert result["type"] == "SOLID3D"
-        mock_http.boolean_union.assert_called_once_with("BOX_1", "BOX_2")
+        mock_solid_repo.boolean_union.assert_called_once_with("BOX_1", "BOX_2")
 
-    def test_boolean_union_failure(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.boolean_union.return_value = None
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_boolean_union_failure(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.boolean_union.return_value = None
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.boolean_union(handle1="BOX_1", handle2="BOX_2")
         assert "error" in result
 
-    def test_boolean_subtract(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.boolean_subtract.return_value = "BOOL_002"
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_boolean_subtract(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.boolean_subtract.return_value = "BOOL_002"
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.boolean_subtract(handle1="BOX_1", handle2="CYL_1")
         assert result["handle"] == "BOOL_002"
-        mock_http.boolean_subtract.assert_called_once_with("BOX_1", "CYL_1")
+        mock_solid_repo.boolean_subtract.assert_called_once_with("BOX_1", "CYL_1")
 
-    def test_boolean_subtract_failure(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.boolean_subtract.return_value = None
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_boolean_subtract_failure(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.boolean_subtract.return_value = None
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.boolean_subtract(handle1="BOX_1", handle2="CYL_1")
         assert "error" in result
 
-    def test_boolean_intersect(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.boolean_intersect.return_value = "BOOL_003"
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_boolean_intersect(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.boolean_intersect.return_value = "BOOL_003"
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.boolean_intersect(handle1="BOX_1", handle2="SPH_1")
         assert result["handle"] == "BOOL_003"
-        mock_http.boolean_intersect.assert_called_once_with("BOX_1", "SPH_1")
+        mock_solid_repo.boolean_intersect.assert_called_once_with("BOX_1", "SPH_1")
 
-    def test_boolean_intersect_failure(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.boolean_intersect.return_value = None
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_boolean_intersect_failure(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.boolean_intersect.return_value = None
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.boolean_intersect(handle1="BOX_1", handle2="SPH_1")
         assert "error" in result
 
-    def test_extrude_solid(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.extrude_solid.return_value = "EXT_001"
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_extrude_solid(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.extrude_solid.return_value = "EXT_001"
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.extrude_solid(handle="PLINE_1", height=50.0, taper_angle=5.0)
         assert result["handle"] == "EXT_001"
-        mock_http.extrude_solid.assert_called_once_with("PLINE_1", 50.0, 5.0)
+        mock_solid_repo.extrude_solid.assert_called_once_with("PLINE_1", 50.0, 5.0)
 
-    def test_extrude_solid_failure(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.extrude_solid.return_value = None
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_extrude_solid_failure(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.extrude_solid.return_value = None
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.extrude_solid(handle="PLINE_1", height=50.0)
         assert "error" in result
 
-    def test_revolve_solid(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.revolve_solid.return_value = "REV_001"
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_revolve_solid(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.revolve_solid.return_value = "REV_001"
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.revolve_solid(
             handle="PLINE_1", axis_x=0, axis_y=0, axis_z=0,
             dir_x=0, dir_y=0, dir_z=1, angle=360,
         )
         assert result["handle"] == "REV_001"
-        mock_http.revolve_solid.assert_called_once_with(
+        mock_solid_repo.revolve_solid.assert_called_once_with(
             "PLINE_1", 0, 0, 0, 0, 0, 1, 360
         )
 
-    def test_revolve_solid_failure(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.revolve_solid.return_value = None
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_revolve_solid_failure(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.revolve_solid.return_value = None
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.revolve_solid(handle="PLINE_1")
         assert "error" in result
 
-    def test_move_solid(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.move_solid.return_value = True
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_move_solid(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.move_solid.return_value = True
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.move_solid(handle="BOX_1", dx=10, dy=20, dz=30)
         assert result["success"] is True
         assert result["dx"] == 10
         assert result["dy"] == 20
         assert result["dz"] == 30
-        mock_http.move_solid.assert_called_once_with("BOX_1", 10, 20, 30)
+        mock_solid_repo.move_solid.assert_called_once_with("BOX_1", 10, 20, 30)
 
-    def test_move_solid_failure(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.move_solid.return_value = False
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_move_solid_failure(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.move_solid.return_value = False
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.move_solid(handle="BOX_1", dx=10, dy=20)
         assert result["success"] is False
 
-    def test_set_3d_view(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.set_3d_view.return_value = True
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_set_3d_view(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.set_3d_view.return_value = True
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.set_3d_view(direction="SW Isometric", render_mode="wireframe")
         assert result["success"] is True
         assert result["direction"] == "SW Isometric"
-        mock_http.set_3d_view.assert_called_once_with("SW Isometric", "wireframe")
+        mock_solid_repo.set_3d_view.assert_called_once_with("SW Isometric", "wireframe")
 
-    def test_set_3d_view_failure(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.set_3d_view.return_value = False
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_set_3d_view_failure(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.set_3d_view.return_value = False
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.set_3d_view(direction="Top")
         assert result["success"] is False
 
-    def test_get_solid_properties(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.get_solid_properties.return_value = {
+    def test_get_solid_properties(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.get_solid_properties.return_value = {
             "volume": 1000.0,
             "surface_area": 600.0,
             "centroid": (5.0, 5.0, 5.0),
         }
-        uc = SolidUseCase(mock_repo_with_http)
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.get_solid_properties(handle="BOX_1")
         assert result["volume"] == 1000.0
         assert result["surface_area"] == 600.0
-        mock_http.get_solid_properties.assert_called_once_with("BOX_1")
+        mock_solid_repo.get_solid_properties.assert_called_once_with("BOX_1")
 
-    def test_get_solid_properties_none(self, mock_repo_with_http: MagicMock, mock_http: MagicMock) -> None:
-        mock_http.get_solid_properties.return_value = None
-        uc = SolidUseCase(mock_repo_with_http)
+    def test_get_solid_properties_none(self, mock_solid_repo: MagicMock) -> None:
+        mock_solid_repo.get_solid_properties.return_value = None
+        uc = SolidUseCase(mock_solid_repo)
         result = uc.get_solid_properties(handle="INVALID")
         assert result == {}
 
@@ -274,7 +259,7 @@ class TestEntityUseCaseAdditional:
         mock_repo.create_ellipse.assert_called_once()
 
     def test_get_entity_found(self, mock_repo: MagicMock) -> None:
-        from src.domain.entities import CadLine, EntityHandle, LayerName, Point2D
+        from src.domain.entities import CadLine, LayerName, Point2D
 
         entity = CadLine(
             start=Point2D(x=0, y=0),
@@ -374,13 +359,6 @@ class TestBlockUseCaseAdditional:
         assert result["block_name"] == "Chair"
         assert result["insertion"] == (10.0, 20.0)
         mock_repo.insert_block.assert_called_once()
-
-    def test_get_block_entities_requires_http(self, mock_repo: MagicMock) -> None:
-        mock_repo._http = None
-        uc = BlockUseCase(mock_repo)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
-            uc.get_block_entities(name="MyBlock")
-
 
 # ── DocumentUseCase additional tests ────────────────────────
 

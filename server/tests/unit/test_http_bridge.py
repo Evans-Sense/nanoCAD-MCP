@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+import os
 from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
 
-from src.infrastructure.http_bridge import HttpCadBridge, _read_port_file
+from src.infrastructure.http_bridge import HttpCadBridge
+
+
+@pytest.fixture(autouse=True)
+def _set_test_data_dir() -> None:
+    r"""Set NANOCAD_MCP_DATA_DIR to C:\ so tests with C:/projects pass validation."""
+    os.environ["NANOCAD_MCP_DATA_DIR"] = "C:\\"
 
 
 @pytest.fixture
@@ -368,7 +375,7 @@ class TestDocumentOps:
         assert bridge.open_document("C:\\drawing.dwg") is True
         bridge._client.request.assert_called_once_with(
             "POST", "/api/document/open",
-            json={"path": "C:\\drawing.dwg"},
+            json={"path": "C:/drawing.dwg"},
             timeout=30.0,
         )
 
@@ -939,10 +946,10 @@ class TestDocManagementOps:
     def test_create_project_with_template(self, bridge: HttpCadBridge) -> None:
         bridge._client.request.return_value = _mock_response({"success": True})
         assert (
-            bridge.create_project("model.dwg", "C:/projects", "ansi.dwt") is True
+            bridge.create_project("model.dwg", "C:/projects", "C:/templates/ansi.dwt") is True
         )
         body = bridge._client.request.call_args.kwargs["json"]
-        assert body["template"] == "ansi.dwt"
+        assert body["template"] == "C:/templates/ansi.dwt"
         assert body["save_path"] == "C:/projects/model.dwg"
 
     def test_create_project_appends_dwg_extension(self, bridge: HttpCadBridge) -> None:
@@ -1104,12 +1111,34 @@ class TestAdvancedOps:
         assert bridge.loft_solid(["S1", "S2"]) is True
 
     def test_fillet_edge(self, bridge: HttpCadBridge) -> None:
-        bridge._client.request.return_value = _mock_response({"success": True})
-        assert bridge.fillet_edge("H1", 5.0) is True
+        bridge._client.request.return_value = _mock_response({"success": True, "handle": "1F5"})
+        assert bridge.fillet_edge("H1", 5.0) == "1F5"
 
     def test_chamfer_edge(self, bridge: HttpCadBridge) -> None:
-        bridge._client.request.return_value = _mock_response({"success": True})
-        assert bridge.chamfer_edge("H1", 5.0, 5.0) is True
+        bridge._client.request.return_value = _mock_response({"success": True, "handle": "2A0"})
+        assert bridge.chamfer_edge("H1", 5.0, 5.0) == "2A0"
+
+    def test_fillet_edge_error_response(self, bridge: HttpCadBridge) -> None:
+        """Error JSON should return None, not a handle."""
+        bridge._client.request.return_value = _mock_response({"success": False, "error": "Not supported"})
+        assert bridge.fillet_edge("H1") is None
+
+    def test_chamfer_edge_error_response(self, bridge: HttpCadBridge) -> None:
+        """Error JSON should return None, not a handle."""
+        bridge._client.request.return_value = _mock_response({"success": False, "error": "Not supported"})
+        assert bridge.chamfer_edge("H1") is None
+
+    def test_fillet_edge_connect_error(self, bridge: HttpCadBridge) -> None:
+        """Network error should return None."""
+        import httpx
+        bridge._client.request.side_effect = httpx.ConnectError("connection refused")
+        assert bridge.fillet_edge("H1") is None
+
+    def test_chamfer_edge_connect_error(self, bridge: HttpCadBridge) -> None:
+        """Network error should return None."""
+        import httpx
+        bridge._client.request.side_effect = httpx.ConnectError("connection refused")
+        assert bridge.chamfer_edge("H1") is None
 
 
 # ── Assembly operations ──────────────────────────────────────
@@ -1331,10 +1360,9 @@ class TestSubMeshOps:
 class TestPortFile:
     def test_read_port_file_exists(self) -> None:
         import tempfile
-        import os
 
         tmp = tempfile.gettempdir()
-        port_file = tmp + "/ncad-mcp-port-test.txt"
+        tmp + "/ncad-mcp-port-test.txt"
 
         # Temporarily mock Path.home() to point to temp
         with patch("src.infrastructure.http_bridge.Path.home") as mock_home:

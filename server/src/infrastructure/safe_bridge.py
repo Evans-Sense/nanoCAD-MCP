@@ -11,6 +11,8 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any
 
+from src.domain.exceptions import NanocadError
+
 if TYPE_CHECKING:
     from src.infrastructure.http_bridge import HttpCadBridge
 
@@ -75,6 +77,11 @@ class SafeBridge:
                 self._consecutive_errors = 0
                 time.sleep(self._call_delay)
                 return result
+            except NanocadError as e:
+                self._consecutive_errors += 1
+                logger.warning("SafeBridge.%s: nanoCAD error: %s", name, e)
+                time.sleep(self._call_delay * 2)
+                return None
             except Exception as e:
                 self._consecutive_errors += 1
                 logger.warning("SafeBridge.%s failed: %s", name, e)

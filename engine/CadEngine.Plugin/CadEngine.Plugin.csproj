@@ -41,6 +41,10 @@
       <HintPath>$(MSBuildThisFileDirectory)..\..\NC_SDK_RU_26.0.7228.4926.8429\include-x64\mapibasetypes2.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="M3D">
+      <HintPath>$(MSBuildThisFileDirectory)..\..\nanoCAD\bin_nPlat\M3D.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
   </ItemGroup>
 
 </Project>

@@ -499,6 +499,11 @@ namespace CadEngine
             // 3D Zoom
             if (method == "POST" && path == "/api/solid/zoom")
             { return _solidService.ZoomExt(); }
+            // 3D Fillet/Chamfer
+            if (method == "POST" && path == "/api/solid/filletedge")
+            { var req = ParseBody<FilletEdgeRequest>(request); return req != null ? _solidService.FilletEdgeSolid(req.Handle, req.Radius) : BadRequest(); }
+            if (method == "POST" && path == "/api/solid/chamferedge")
+            { var req = ParseBody<ChamferEdgeRequest>(request); return req != null ? _solidService.ChamferEdgeSolid(req.Handle, req.Dist1, req.Dist2) : BadRequest(); }
 
             // === SYMBOLS (MultiCAD) ===
             if (method == "POST" && path == "/api/symbol/roughness")

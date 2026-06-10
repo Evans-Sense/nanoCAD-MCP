@@ -1,0 +1,12 @@
+nanoCAD MCP Server
+Copyright (c) 2026 nanoCAD MCP Team
+
+This project uses MultiCAD API SDK, which is proprietary software
+owned by NTCAD (Nanosoft). The MultiCAD API SDK is not distributed
+with this project.
+
+Users must obtain a valid license for nanoCAD Plus or Pro edition
+from NTCAD separately to use MultiCAD API features.
+
+All other components of this project are licensed under the MIT
+License as described in the LICENSE file.

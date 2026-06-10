@@ -166,6 +166,11 @@ class ICadRepository(ABC):
     @abstractmethod
     def delete_block(self, name: LayerName) -> bool: ...
 
+    @abstractmethod
+    def get_block_entities(self, name: str) -> list[dict[str, Any]]:
+        """Get all entities within a block definition (requires .NET engine)."""
+        ...
+
     # ── Document Operations ────────────────────────────────
 
     @abstractmethod
@@ -262,6 +267,69 @@ class ICadRepository(ABC):
 
     @abstractmethod
     def render(self, **kwargs: Any) -> Any: ...
+
+    # ── 3D Solids ─────────────────────────────────────────────
+
+    @abstractmethod
+    def create_box(self, x: float, y: float, z: float) -> str | None: ...
+
+    @abstractmethod
+    def create_sphere(self, radius: float) -> str | None: ...
+
+    @abstractmethod
+    def create_cylinder(self, radius: float, height: float) -> str | None: ...
+
+    @abstractmethod
+    def create_cone(self, radius_bottom: float, height: float) -> str | None: ...
+
+    @abstractmethod
+    def create_torus(self, major_radius: float, minor_radius: float) -> str | None: ...
+
+    @abstractmethod
+    def create_wedge(self, x: float, y: float, z: float) -> str | None: ...
+
+    @abstractmethod
+    def create_pyramid(self, height: float, sides: int, radius: float) -> str | None: ...
+
+    @abstractmethod
+    def boolean_union(self, h1: str, h2: str) -> str | None: ...
+
+    @abstractmethod
+    def boolean_subtract(self, h1: str, h2: str) -> str | None: ...
+
+    @abstractmethod
+    def boolean_intersect(self, h1: str, h2: str) -> str | None: ...
+
+    @abstractmethod
+    def extrude_solid(
+        self, handle: str, height: float, taper_angle: float = 0
+    ) -> str | None: ...
+
+    @abstractmethod
+    def revolve_solid(
+        self,
+        handle: str,
+        axis_x: float = 0,
+        axis_y: float = 0,
+        axis_z: float = 0,
+        dir_x: float = 0,
+        dir_y: float = 0,
+        dir_z: float = 1,
+        angle: float = 360,
+    ) -> str | None: ...
+
+    @abstractmethod
+    def move_solid(
+        self, handle: str, dx: float, dy: float, dz: float = 0
+    ) -> bool: ...
+
+    @abstractmethod
+    def set_3d_view(
+        self, direction: str, render_mode: str = "wireframe"
+    ) -> bool: ...
+
+    @abstractmethod
+    def get_solid_properties(self, handle: str) -> dict[str, Any] | None: ...
 
     # ── NURBS / IFC ────────────────────────────────────────
 

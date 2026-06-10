@@ -15,6 +15,7 @@ Usage:
 """
 from __future__ import annotations
 
+import contextlib
 import os
 import random
 import sys
@@ -161,13 +162,13 @@ class TestDocument:
 
     def test_02_save(self) -> None:
         # Save to a temp path to avoid dialog prompts
-        import tempfile, os
+        import os
+        import tempfile
         tmp = os.path.join(tempfile.gettempdir(), f"ncad_test_save_{random.randint(10000, 99999)}.dwg")
         result = _post("/api/document/save", json={"path": tmp})
         assert result.get("success") is not False, f"Save failed: {result}"
         # Cleanup
-        try: os.remove(tmp)
-        except: pass
+        with contextlib.suppress(BaseException): os.remove(tmp)
 
     def test_03_undo_redo(self) -> None:
         # Create then undo
@@ -1441,7 +1442,7 @@ class TestNurbs:
 
     def test_02_modify_nurb(self) -> None:
         """Modify a NURBS control point."""
-        h = getattr(TestNurbs, '_h_curve', None)
+        h = getattr(TestNurbs, "_h_curve", None)
         if not h:
             pytest.skip("No NURBS curve to modify")
         r = _patch("/api/entity/nurb", json={

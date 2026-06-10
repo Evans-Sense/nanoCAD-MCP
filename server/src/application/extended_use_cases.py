@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+from src.domain.exceptions import NotSupportedError
+
 if TYPE_CHECKING:
     from src.infrastructure.http_bridge import HttpCadBridge
 
@@ -17,7 +19,7 @@ class SymbolUseCase:
 
     def _require_http(self) -> None:
         if not self._http or not self._http.is_available:
-            raise NotImplementedError("Requires .NET engine for MultiCAD symbols")
+            raise NotSupportedError("Requires .NET engine for MultiCAD symbols")
 
     def create_roughness(self, **kwargs: Any) -> Any:
         self._require_http()
@@ -108,7 +110,7 @@ class TableUseCase:
 
     def _require_http(self) -> None:
         if not self._http or not self._http.is_available:
-            raise NotImplementedError("Requires .NET engine for MultiCAD tables")
+            raise NotSupportedError("Requires .NET engine for MultiCAD tables")
 
     def create_table(self, **kwargs: Any) -> Any:
         self._require_http()
@@ -146,7 +148,7 @@ class HatchUseCase:
 
     def _require_http(self) -> None:
         if not self._http or not self._http.is_available:
-            raise NotImplementedError("Requires .NET engine for hatch operations")
+            raise NotSupportedError("Requires .NET engine for hatch operations")
 
     def create_hatch(self, **kwargs: Any) -> Any:
         self._require_http()
@@ -192,7 +194,7 @@ class DimensionUseCase:
 
     def _require_http(self) -> None:
         if not self._http or not self._http.is_available:
-            raise NotImplementedError("Requires .NET engine for dimension operations")
+            raise NotSupportedError("Requires .NET engine for dimension operations")
 
     def create_aligned_dimension(self, **kwargs: Any) -> Any:
         self._require_http()
@@ -277,7 +279,7 @@ class MeasurementUseCase:
 
     def _require_http(self) -> None:
         if not self._http or not self._http.is_available:
-            raise NotImplementedError("Requires .NET engine for measurements")
+            raise NotSupportedError("Requires .NET engine for measurements")
 
     def get_distance(self, **kwargs: Any) -> Any:
         self._require_http()
@@ -329,7 +331,7 @@ class TransformationUseCase:
 
     def _require_http(self) -> None:
         if not self._http or not self._http.is_available:
-            raise NotImplementedError("Requires .NET engine for transformations")
+            raise NotSupportedError("Requires .NET engine for transformations")
 
     def stretch_entity(self, **kwargs: Any) -> Any:
         self._require_http()
@@ -425,7 +427,7 @@ class PrimitiveUseCase:
 
     def _require_http(self) -> None:
         if not self._http or not self._http.is_available:
-            raise NotImplementedError("Requires .NET engine for primitive creation")
+            raise NotSupportedError("Requires .NET engine for primitive creation")
 
     def create_polygon(self, **kwargs: Any) -> Any:
         self._require_http()
@@ -477,7 +479,7 @@ class TrimExtendOffsetUseCase:
 
     def _require_http(self) -> None:
         if not self._http or not self._http.is_available:
-            raise NotImplementedError("Requires .NET engine for trim/extend/offset")
+            raise NotSupportedError("Requires .NET engine for trim/extend/offset")
 
     def trim_entity(self, **kwargs: Any) -> Any:
         self._require_http()
@@ -512,7 +514,7 @@ class LayerManagementUseCase:
 
     def _require_http(self) -> None:
         if not self._http or not self._http.is_available:
-            raise NotImplementedError("Requires .NET engine for layer management")
+            raise NotSupportedError("Requires .NET engine for layer management")
 
     def layer_isolate(self, **kwargs: Any) -> Any:
         self._require_http()
@@ -543,7 +545,7 @@ class LinearDimUseCase:
 
     def _require_http(self) -> None:
         if not self._http or not self._http.is_available:
-            raise NotImplementedError("Requires .NET engine for DIMLINEAR")
+            raise NotSupportedError("Requires .NET engine for DIMLINEAR")
 
     def create_linear_dimension(self, **kwargs: Any) -> Any:
         self._require_http()
@@ -566,7 +568,7 @@ class SweepLoftUseCase:
 
     def _require_http(self) -> None:
         if not self._http or not self._http.is_available:
-            raise NotImplementedError("Requires .NET engine for SWEEP/LOFT")
+            raise NotSupportedError("Requires .NET engine for SWEEP/LOFT")
 
     def sweep_solid(self, **kwargs: Any) -> Any:
         self._require_http()
@@ -590,22 +592,28 @@ class EdgeOpUseCase:
 
     def _require_http(self) -> None:
         if not self._http or not self._http.is_available:
-            raise NotImplementedError("Requires .NET engine for FILLETEDGE/CHAMFEREDGE")
+            raise NotSupportedError("Requires .NET engine for FILLETEDGE/CHAMFEREDGE")
 
-    def fillet_edge(self, **kwargs: Any) -> Any:
+    def fillet_edge(self, **kwargs: Any) -> dict[str, Any]:
         self._require_http()
-        return self._http.fillet_edge(  # type: ignore[union-attr]
+        handle = self._http.fillet_edge(  # type: ignore[union-attr]
             handle=kwargs.get("handle", ""),
             radius=kwargs.get("radius", 5.0),
         )
+        if handle:
+            return {"success": True, "handle": handle}
+        return {"success": False, "error": "Fillet failed"}
 
-    def chamfer_edge(self, **kwargs: Any) -> Any:
+    def chamfer_edge(self, **kwargs: Any) -> dict[str, Any]:
         self._require_http()
-        return self._http.chamfer_edge(  # type: ignore[union-attr]
+        handle = self._http.chamfer_edge(  # type: ignore[union-attr]
             handle=kwargs.get("handle", ""),
             dist1=kwargs.get("dist1", 5.0),
             dist2=kwargs.get("dist2", 5.0),
         )
+        if handle:
+            return {"success": True, "handle": handle}
+        return {"success": False, "error": "Chamfer failed"}
 
 
 class AssemblyUseCase:
@@ -616,7 +624,7 @@ class AssemblyUseCase:
 
     def _require_http(self) -> None:
         if not self._http or not self._http.is_available:
-            raise NotImplementedError("Requires .NET engine for assembly operations")
+            raise NotSupportedError("Requires .NET engine for assembly operations")
 
     def insert_part(self, **kwargs: Any) -> Any:
         self._require_http()
@@ -666,7 +674,7 @@ class DocumentManagementUseCase:
 
     def _require_http(self) -> None:
         if not self._http or not self._http.is_available:
-            raise NotImplementedError("Requires .NET engine for document management")
+            raise NotSupportedError("Requires .NET engine for document management")
 
     def undo(self, **kwargs: Any) -> Any:
         self._require_http()
@@ -701,7 +709,7 @@ class BlockManagementUseCase:
 
     def _require_http(self) -> None:
         if not self._http or not self._http.is_available:
-            raise NotImplementedError("Requires .NET engine for block management")
+            raise NotSupportedError("Requires .NET engine for block management")
 
     def create_block(self, **kwargs: Any) -> Any:
         self._require_http()
@@ -727,7 +735,7 @@ class SelectionUseCase:
 
     def _require_http(self) -> None:
         if not self._http or not self._http.is_available:
-            raise NotImplementedError("Requires .NET engine for selection")
+            raise NotSupportedError("Requires .NET engine for selection")
 
     def select_entities(self, **kwargs: Any) -> Any:
         self._require_http()
@@ -759,7 +767,7 @@ class StlExportUseCase:
 
     def _require_http(self) -> None:
         if not self._http or not self._http.is_available:
-            raise NotImplementedError("Requires .NET engine for STL export")
+            raise NotSupportedError("Requires .NET engine for STL export")
 
     def export_stl(self, **kwargs: Any) -> Any:
         self._require_http()
@@ -777,7 +785,7 @@ class ConstraintUseCase:
 
     def _require_http(self) -> None:
         if not self._http or not self._http.is_available:
-            raise NotImplementedError("Requires .NET engine for 2D constraints")
+            raise NotSupportedError("Requires .NET engine for 2D constraints")
 
     def constraint_parallel(self, **kwargs: Any) -> Any:
         self._require_http()
@@ -871,7 +879,7 @@ class MLeaderUseCase:
 
     def _require_http(self) -> None:
         if not self._http or not self._http.is_available:
-            raise NotImplementedError("Requires .NET engine for MLEADER")
+            raise NotSupportedError("Requires .NET engine for MLEADER")
 
     def create_mleader(self, **kwargs: Any) -> Any:
         self._require_http()
@@ -894,7 +902,7 @@ class SheetMetalUseCase:
 
     def _require_http(self) -> None:
         if not self._http or not self._http.is_available:
-            raise NotImplementedError("Requires .NET engine for sheet metal")
+            raise NotSupportedError("Requires .NET engine for sheet metal")
 
     def create_base_flange(self, **kwargs: Any) -> Any:
         self._require_http()
@@ -947,7 +955,7 @@ class FeatureUseCase:
 
     def _require_http(self) -> None:
         if not self._http or not self._http.is_available:
-            raise NotImplementedError("Requires .NET engine for 3D features")
+            raise NotSupportedError("Requires .NET engine for 3D features")
 
     def create_simple_hole(self, **kwargs: Any) -> Any:
         self._require_http()
@@ -1076,7 +1084,7 @@ class NurbIfcUseCase:
 
     def _require_http(self) -> None:
         if not self._http or not self._http.is_available:
-            raise NotImplementedError("Requires .NET engine for NURBS/IFC operations")
+            raise NotSupportedError("Requires .NET engine for NURBS/IFC operations")
 
     def create_nurb_curve(
         self,
@@ -1164,7 +1172,7 @@ class MultiCadUseCase:
 
     def _require_http(self) -> None:
         if not self._http or not self._http.is_available:
-            raise NotImplementedError("Requires .NET engine for MultiCAD operations")
+            raise NotSupportedError("Requires .NET engine for MultiCAD operations")
 
     def create_grid_axis(
         self,

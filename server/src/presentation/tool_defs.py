@@ -16,6 +16,30 @@ I = "integer"
 OBJ = "object"
 S2: dict[str, str] = {"type": S}
 
+# ── Mode classification for capability discovery ──────────────
+# Tools work in different connection modes:
+#   requires_mode=None  — always available, no CAD needed
+#   requires_mode="com" — works with basic COM bridge
+#   requires_mode="full" — requires .NET engine (HTTP bridge, default)
+_OFFLINE_TOOLS: set[str] = {
+    "health_check",
+    "get_system_info",
+}
+
+_COM_TOOLS: set[str] = {
+    # Entity creation (COM fallback in CadRepository)
+    "create_line", "create_circle", "create_arc", "create_polyline",
+    "create_text", "create_point", "create_rectangle",
+    # Entity manipulation
+    "delete_entity", "get_entity",
+    # Layer
+    "get_layers", "create_layer", "set_current_layer",
+    # Document
+    "get_document_info", "save_document", "export_pdf", "zoom_extents",
+    # System
+    "get_system_variable", "set_system_variable",
+}
+
 # All 183 tool definitions in order
 TOOL_DEFS: list[dict[str, Any]] = [
     # ── Health & System ───────────────────────────────────────
@@ -1687,3 +1711,13 @@ TOOL_DEFS: list[dict[str, Any]] = [
 
 # Verify count
 assert len(TOOL_DEFS) == 183, f"Expected 183 tools, got {len(TOOL_DEFS)}"
+
+# ── Assign requires_mode to each tool definition ──────────────
+for td in TOOL_DEFS:
+    name: str = td["name"]
+    if name in _OFFLINE_TOOLS:
+        td["requires_mode"] = None
+    elif name in _COM_TOOLS:
+        td["requires_mode"] = "com"
+    else:
+        td["requires_mode"] = "full"

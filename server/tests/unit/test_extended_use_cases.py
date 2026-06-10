@@ -26,7 +26,7 @@ from src.application.extended_use_cases import (
     TransformationUseCase,
     TrimExtendOffsetUseCase,
 )
-
+from src.domain.exceptions import NotSupportedError
 
 # ── TrimExtendOffsetUseCase ─────────────────────────────────
 
@@ -34,14 +34,14 @@ from src.application.extended_use_cases import (
 class TestTrimExtendOffsetUseCase:
     def test_requires_http(self) -> None:
         uc = TrimExtendOffsetUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.trim_entity(handle="A1", cut_x=5, cut_y=0)
 
     def test_requires_http_not_available(self) -> None:
         mock_http = MagicMock()
         mock_http.is_available = False
         uc = TrimExtendOffsetUseCase(http=mock_http)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.extend_entity(handle="A1", end_x=10, end_y=0)
 
     def test_trim_entity(self) -> None:
@@ -82,7 +82,7 @@ class TestTrimExtendOffsetUseCase:
 class TestLayerManagementUseCase:
     def test_requires_http(self) -> None:
         uc = LayerManagementUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.layer_isolate(name="Walls")
 
     def test_layer_isolate(self) -> None:
@@ -137,7 +137,7 @@ class TestLayerManagementUseCase:
 class TestLinearDimUseCase:
     def test_requires_http(self) -> None:
         uc = LinearDimUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.create_linear_dimension()
 
     def test_create_linear_dimension(self) -> None:
@@ -171,7 +171,7 @@ class TestLinearDimUseCase:
 class TestSweepLoftUseCase:
     def test_requires_http(self) -> None:
         uc = SweepLoftUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.sweep_solid(profile_handle="A", path_handle="B")
 
     def test_sweep_solid(self) -> None:
@@ -203,34 +203,42 @@ class TestSweepLoftUseCase:
 class TestEdgeOpUseCase:
     def test_requires_http(self) -> None:
         uc = EdgeOpUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.fillet_edge(handle="BOX_1", radius=5.0)
 
     def test_fillet_edge(self) -> None:
         mock_http = MagicMock()
         mock_http.is_available = True
-        mock_http.fillet_edge.return_value = True
+        mock_http.fillet_edge.return_value = "1F5"
         uc = EdgeOpUseCase(http=mock_http)
         result = uc.fillet_edge(handle="BOX_1", radius=3.5)
-        assert result is True
+        assert result == {"success": True, "handle": "1F5"}
         mock_http.fillet_edge.assert_called_once_with(handle="BOX_1", radius=3.5)
 
     def test_fillet_edge_defaults(self) -> None:
         mock_http = MagicMock()
         mock_http.is_available = True
-        mock_http.fillet_edge.return_value = True
+        mock_http.fillet_edge.return_value = "2A0"
         uc = EdgeOpUseCase(http=mock_http)
         result = uc.fillet_edge(handle="BOX_1")
-        assert result is True
+        assert result == {"success": True, "handle": "2A0"}
         mock_http.fillet_edge.assert_called_once_with(handle="BOX_1", radius=5.0)
+
+    def test_fillet_edge_failure(self) -> None:
+        mock_http = MagicMock()
+        mock_http.is_available = True
+        mock_http.fillet_edge.return_value = None
+        uc = EdgeOpUseCase(http=mock_http)
+        result = uc.fillet_edge(handle="BOX_1")
+        assert result == {"success": False, "error": "Fillet failed"}
 
     def test_chamfer_edge(self) -> None:
         mock_http = MagicMock()
         mock_http.is_available = True
-        mock_http.chamfer_edge.return_value = True
+        mock_http.chamfer_edge.return_value = "3B0"
         uc = EdgeOpUseCase(http=mock_http)
         result = uc.chamfer_edge(handle="BOX_1", dist1=2.0, dist2=3.0)
-        assert result is True
+        assert result == {"success": True, "handle": "3B0"}
         mock_http.chamfer_edge.assert_called_once_with(
             handle="BOX_1", dist1=2.0, dist2=3.0
         )
@@ -238,13 +246,21 @@ class TestEdgeOpUseCase:
     def test_chamfer_edge_defaults(self) -> None:
         mock_http = MagicMock()
         mock_http.is_available = True
-        mock_http.chamfer_edge.return_value = True
+        mock_http.chamfer_edge.return_value = "4C0"
         uc = EdgeOpUseCase(http=mock_http)
         result = uc.chamfer_edge(handle="BOX_1")
-        assert result is True
+        assert result == {"success": True, "handle": "4C0"}
         mock_http.chamfer_edge.assert_called_once_with(
             handle="BOX_1", dist1=5.0, dist2=5.0
         )
+
+    def test_chamfer_edge_failure(self) -> None:
+        mock_http = MagicMock()
+        mock_http.is_available = True
+        mock_http.chamfer_edge.return_value = None
+        uc = EdgeOpUseCase(http=mock_http)
+        result = uc.chamfer_edge(handle="BOX_1")
+        assert result == {"success": False, "error": "Chamfer failed"}
 
 
 # ── AssemblyUseCase ─────────────────────────────────────────
@@ -253,7 +269,7 @@ class TestEdgeOpUseCase:
 class TestAssemblyUseCase:
     def test_requires_http(self) -> None:
         uc = AssemblyUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.insert_part(block_name="Part1", x=0, y=0, z=0)
 
     def test_insert_part(self) -> None:
@@ -322,7 +338,7 @@ class TestAssemblyUseCase:
 class TestDocumentManagementUseCase:
     def test_requires_http(self) -> None:
         uc = DocumentManagementUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.undo()
 
     def test_undo(self) -> None:
@@ -377,7 +393,7 @@ class TestDocumentManagementUseCase:
 class TestBlockManagementUseCase:
     def test_requires_http(self) -> None:
         uc = BlockManagementUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.create_block(name="MyBlock", handles=["A1"])
 
     def test_create_block(self) -> None:
@@ -409,7 +425,7 @@ class TestBlockManagementUseCase:
 class TestPrimitiveUseCase:
     def test_requires_http(self) -> None:
         uc = PrimitiveUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.create_polygon(center_x=0, center_y=0, radius=10)
 
     def test_create_polygon(self) -> None:
@@ -471,7 +487,7 @@ class TestPrimitiveUseCase:
 class TestTransformationUseCase:
     def test_requires_http(self) -> None:
         uc = TransformationUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.stretch_entity(handle="A1", dx=5, dy=5)
 
     def test_stretch_entity(self) -> None:
@@ -574,7 +590,7 @@ class TestTransformationUseCase:
 class TestSymbolUseCase:
     def test_requires_http(self) -> None:
         uc = SymbolUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.create_roughness(value="Ra 3.2")
 
     def test_create_roughness(self) -> None:
@@ -668,7 +684,7 @@ class TestSymbolUseCase:
 class TestTableUseCase:
     def test_requires_http(self) -> None:
         uc = TableUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.create_table(rows=3, columns=3)
 
     def test_create_table(self) -> None:
@@ -713,17 +729,17 @@ class TestTableUseCase:
 
     def test_table_requires_http_for_edit(self) -> None:
         uc = TableUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.edit_table_cell(handle="TBL_1", row_index=0, column_index=0, value="x")
 
     def test_table_requires_http_for_info(self) -> None:
         uc = TableUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.get_table_info(handle="TBL_1")
 
     def test_table_requires_http_for_delete(self) -> None:
         uc = TableUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.delete_table(handle="TBL_1")
 
 
@@ -733,7 +749,7 @@ class TestTableUseCase:
 class TestHatchUseCase:
     def test_requires_http(self) -> None:
         uc = HatchUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.create_hatch(pattern="ANSI31")
 
     def test_create_hatch(self) -> None:
@@ -771,7 +787,7 @@ class TestHatchUseCase:
 
     def test_create_gradient_requires_http(self) -> None:
         uc = HatchUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.create_gradient()
 
     def test_create_gradient(self) -> None:
@@ -807,7 +823,7 @@ class TestHatchUseCase:
 class TestDimensionUseCase:
     def test_requires_http(self) -> None:
         uc = DimensionUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.create_aligned_dimension()
 
     def test_create_aligned_dimension(self) -> None:
@@ -872,7 +888,7 @@ class TestDimensionUseCase:
 
     def test_create_arc_length_dimension_requires_http(self) -> None:
         uc = DimensionUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.create_arc_length_dimension()
 
     def test_create_arc_length_dimension(self) -> None:
@@ -908,7 +924,7 @@ class TestDimensionUseCase:
 class TestMeasurementUseCase:
     def test_requires_http(self) -> None:
         uc = MeasurementUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.get_distance(x1=0, y1=0, z1=0, x2=10, y2=0, z2=0)
 
     def test_get_distance(self) -> None:
@@ -958,7 +974,7 @@ class TestMeasurementUseCase:
 class TestSelectionUseCase:
     def test_requires_http(self) -> None:
         uc = SelectionUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.select_entities(entity_type="Line")
 
     def test_select_entities(self) -> None:
@@ -1018,7 +1034,7 @@ class TestSelectionUseCase:
 class TestStlExportUseCase:
     def test_requires_http(self) -> None:
         uc = StlExportUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.export_stl(path="/tmp/model.stl")
 
     def test_export_stl(self) -> None:
@@ -1046,7 +1062,7 @@ class TestStlExportUseCase:
 class TestConstraintUseCase:
     def test_requires_http(self) -> None:
         uc = ConstraintUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.constraint_parallel(handle1="A", handle2="B")
 
     def test_constraint_parallel(self) -> None:
@@ -1178,7 +1194,7 @@ class TestConstraintUseCase:
 class TestMLeaderUseCase:
     def test_requires_http(self) -> None:
         uc = MLeaderUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.create_mleader(arrow_x=0, arrow_y=0, leader_x=5, leader_y=5, text="Note")
 
     def test_create_mleader(self) -> None:
@@ -1217,7 +1233,7 @@ class TestMLeaderUseCase:
 class TestSheetMetalUseCase:
     def test_requires_http(self) -> None:
         uc = SheetMetalUseCase(http=None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.create_base_flange(width=100, length=100, thickness=2)
 
     def test_create_base_flange(self) -> None:

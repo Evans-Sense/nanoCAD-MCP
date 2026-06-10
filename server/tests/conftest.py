@@ -1,23 +1,15 @@
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 
 from src.domain.entities import (
-    CadArc,
-    CadCircle,
     CadDocumentInfo,
     CadLayer,
-    CadLine,
-    CadPoint,
-    CadPolyline,
     CadSystemInfo,
-    CadText,
     EntityHandle,
     LayerName,
-    Point2D,
 )
 from src.domain.interfaces import ICadRepository
 

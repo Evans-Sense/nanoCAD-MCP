@@ -12,6 +12,7 @@ from src.application.use_cases import (
     SystemUseCase,
 )
 from src.domain.entities import EntityHandle, LayerName
+from src.domain.exceptions import NotSupportedError
 
 
 class TestEntityUseCase:
@@ -98,94 +99,68 @@ class TestEntityUseCase:
         assert result["fit_points_count"] == 3
         mock_repo.create_spline.assert_called_once()
 
-    def test_create_helix_requires_http(self, mock_repo: MagicMock) -> None:
-        uc = EntityUseCase(mock_repo)
-        del mock_repo._http
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
-            uc.create_helix()
-
     def test_create_helix(self, mock_repo: MagicMock) -> None:
         uc = EntityUseCase(mock_repo)
-        mock_repo._http = MagicMock()
-        mock_repo._http.is_available = True
-        mock_repo._http.create_helix.return_value = "HLX_001"
+        mock_repo.create_helix.return_value = "HLX_001"
         result = uc.create_helix(
             center_x=0, center_y=0, center_z=0, start_radius=20,
             end_radius=10, height=50, turns=3,
         )
         assert result == "HLX_001"
-        mock_repo._http.create_helix.assert_called_once_with(
+        mock_repo.create_helix.assert_called_once_with(
             center_x=0, center_y=0, center_z=0, start_radius=20,
             end_radius=10, height=50, turns=3, layer=None,
         )
 
     def test_create_region(self, mock_repo: MagicMock) -> None:
         uc = EntityUseCase(mock_repo)
-        mock_repo._http = MagicMock()
-        mock_repo._http.is_available = True
-        mock_repo._http.create_region.return_value = {"handle": "REG_001"}
+        mock_repo.create_region.return_value = {"handle": "REG_001"}
         result = uc.create_region(curve_handles=["C1", "C2"])
         assert result == {"handle": "REG_001"}
-        mock_repo._http.create_region.assert_called_once_with(
+        mock_repo.create_region.assert_called_once_with(
             curve_handles=["C1", "C2"],
         )
 
     def test_create_boundary(self, mock_repo: MagicMock) -> None:
         uc = EntityUseCase(mock_repo)
-        mock_repo._http = MagicMock()
-        mock_repo._http.is_available = True
-        mock_repo._http.create_boundary.return_value = {"handle": "BND_001"}
-        result = uc.create_boundary(point_x=50, point_y=50)
+        mock_repo.create_boundary.return_value = {"handle": "BND_001"}
+        result = uc.create_boundary(point_x=50, point_y=50, layer=None)
         assert result == {"handle": "BND_001"}
-        mock_repo._http.create_boundary.assert_called_once_with(
+        mock_repo.create_boundary.assert_called_once_with(
             point_x=50, point_y=50, layer=None,
         )
 
     def test_create_mesh(self, mock_repo: MagicMock) -> None:
         uc = EntityUseCase(mock_repo)
-        mock_repo._http = MagicMock()
-        mock_repo._http.is_available = True
-        mock_repo._http.create_mesh.return_value = {"handle": "M001"}
+        mock_repo.create_mesh.return_value = {"handle": "M001"}
         result = uc.create_mesh(
             vertices=[[0, 0, 0], [10, 0, 0], [10, 10, 0], [0, 10, 0]],
             face_indices=[3, 2, 1, 0],
             smooth_level=0,
         )
         assert result == {"handle": "M001"}
-        mock_repo._http.create_mesh.assert_called_once_with(
+        mock_repo.create_mesh.assert_called_once_with(
             vertices=[[0, 0, 0], [10, 0, 0], [10, 10, 0], [0, 10, 0]],
             face_indices=[3, 2, 1, 0],
             smooth_level=0,
             layer=None,
         )
 
-    def test_create_mesh_requires_http(self, mock_repo: MagicMock) -> None:
-        uc = EntityUseCase(mock_repo)
-        del mock_repo._http
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
-            uc.create_mesh()
-
     def test_edit_mesh(self, mock_repo: MagicMock) -> None:
         uc = EntityUseCase(mock_repo)
-        mock_repo._http = MagicMock()
-        mock_repo._http.is_available = True
-        mock_repo._http.edit_mesh.return_value = {"success": True}
+        mock_repo.edit_mesh.return_value = {"success": True}
         result = uc.edit_mesh(handle="M001", vertices=[[1, 1, 1]], subdivide=1)
         assert result == {"success": True}
 
     def test_set_viewport(self, mock_repo: MagicMock) -> None:
         uc = EntityUseCase(mock_repo)
-        mock_repo._http = MagicMock()
-        mock_repo._http.is_available = True
-        mock_repo._http.set_viewport.return_value = True
+        mock_repo.set_viewport.return_value = True
         result = uc.set_viewport(name="test", vp_type="2vert")
         assert result is True
 
     def test_render(self, mock_repo: MagicMock) -> None:
         uc = EntityUseCase(mock_repo)
-        mock_repo._http = MagicMock()
-        mock_repo._http.is_available = True
-        mock_repo._http.render.return_value = True
+        mock_repo.render.return_value = True
         result = uc.render(output_file="out.png")
         assert result is True
 
@@ -329,20 +304,12 @@ class TestDocumentUseCase:
         assert "\\" not in result["path"]
         assert result["path"] == "C:/projects/sub/out.dwg"
 
-    def test_export_ifc_requires_http(self, mock_repo: MagicMock) -> None:
-        uc = DocumentUseCase(mock_repo)
-        del mock_repo._http
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
-            uc.export_ifc(path="C:/model.ifc")
-
     def test_export_ifc(self, mock_repo: MagicMock) -> None:
         uc = DocumentUseCase(mock_repo)
-        mock_repo._http = MagicMock()
-        mock_repo._http.is_available = True
-        mock_repo._http.export_ifc.return_value = {"success": True}
+        mock_repo.export_ifc.return_value = {"success": True}
         result = uc.export_ifc(path="C:/model.ifc")
         assert result == {"success": True}
-        mock_repo._http.export_ifc.assert_called_once_with(
+        mock_repo.export_ifc.assert_called_once_with(
             path="C:/model.ifc",
         )
 
@@ -390,24 +357,9 @@ class TestSystemUseCase:
 
 
 class TestBlockUseCase:
-    def test_get_block_entities_raises_without_http(self, mock_repo: MagicMock) -> None:
-        uc = BlockUseCase(mock_repo)
-        del mock_repo._http
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
-            uc.get_block_entities(name="Block1")
-
-    def test_get_block_entities_raises_when_http_unavailable(self, mock_repo: MagicMock) -> None:
-        uc = BlockUseCase(mock_repo)
-        mock_repo._http = MagicMock()
-        mock_repo._http.is_available = False
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
-            uc.get_block_entities(name="Block1")
-
     def test_get_block_entities(self, mock_repo: MagicMock) -> None:
         uc = BlockUseCase(mock_repo)
-        mock_repo._http = MagicMock()
-        mock_repo._http.is_available = True
-        mock_repo._http.get_block_entities.return_value = [{"handle": "E1"}]
+        mock_repo.get_block_entities.return_value = [{"handle": "E1"}]
         result = uc.get_block_entities(name="Block1")
         assert result == [{"handle": "E1"}]
 
@@ -482,7 +434,7 @@ class TestFeatureUseCase:
         from src.application.extended_use_cases import FeatureUseCase
 
         uc = FeatureUseCase(None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.create_simple_hole(solid_handle="S1", diameter=10, depth=50)
 
 
@@ -621,7 +573,7 @@ class TestNurbIfcUseCase:
         from src.application.extended_use_cases import NurbIfcUseCase
 
         uc = NurbIfcUseCase(None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.create_nurb_curve(degree=3, control_points=[[0, 0]], knots=[0, 1])
 
 
@@ -888,12 +840,12 @@ class TestMultiCadUseCase:
         from src.application.extended_use_cases import MultiCadUseCase
 
         uc = MultiCadUseCase(None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.create_grid_axis()
 
     def test_requires_http_for_room(self, mock_repo: MagicMock) -> None:
         from src.application.extended_use_cases import MultiCadUseCase
 
         uc = MultiCadUseCase(None)
-        with pytest.raises(NotImplementedError, match="Requires .NET engine"):
+        with pytest.raises(NotSupportedError, match="Requires .NET engine"):
             uc.create_room()

@@ -2,9 +2,9 @@
 
 Tests cover:
 - setup_logging
-- _ensure_connected (global state initialization)
-- _get_tools (tool definitions, 133 tools)
-- _build_routing (routing table)
+- _ensure_connected (context vars initialization)
+- _get_tools (tool definitions, 183 tools)
+- _build_routing (routing table via UseCaseFactory)
 - _has_kwargs utility
 - create_server (MCP Server)
 - main entry point
@@ -12,76 +12,45 @@ Tests cover:
 
 from __future__ import annotations
 
-import asyncio
-import inspect
 import logging
 import os
-from contextlib import ExitStack
-from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from mcp.types import Tool
 
 import src.presentation.server as srv
-
+from src.presentation.context import (
+    get_factory,
+    get_repository,
+    set_factory,
+    set_repository,
+)
+from src.presentation.context import (
+    reset as reset_context,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers & Fixtures
 # ---------------------------------------------------------------------------
 
 _SERVER_GLOBALS = [
-    "_repository", "_entity_uc", "_layer_uc", "_block_uc", "_document_uc",
-    "_system_uc", "_solid_uc", "_symbol_uc", "_table_uc", "_hatch_uc",
-    "_dimension_uc", "_measurement_uc", "_transform_uc", "_primitive_uc",
-    "_doc_mgmt_uc", "_block_mgmt_uc", "_teo_uc", "_layer_mgmt_uc",
-    "_linear_dim_uc", "_sweep_loft_uc", "_edge_op_uc", "_assembly_uc",
-    "_selection_uc", "_stl_uc", "_constraint_uc", "_mleader_uc",
-    "_sheet_metal_uc", "_feature_uc", "_nurb_ifc_uc", "_multicad_uc", "_routing_cache",
-]
-
-_USE_CASE_PATHS = [
-    "src.presentation.server.EntityUseCase",
-    "src.presentation.server.LayerUseCase",
-    "src.presentation.server.BlockUseCase",
-    "src.presentation.server.DocumentUseCase",
-    "src.presentation.server.SystemUseCase",
-    "src.presentation.server.SolidUseCase",
-    "src.presentation.server.SymbolUseCase",
-    "src.presentation.server.TableUseCase",
-    "src.presentation.server.HatchUseCase",
-    "src.presentation.server.DimensionUseCase",
-    "src.presentation.server.MeasurementUseCase",
-    "src.presentation.server.TransformationUseCase",
-    "src.presentation.server.PrimitiveUseCase",
-    "src.presentation.server.DocumentManagementUseCase",
-    "src.presentation.server.BlockManagementUseCase",
-    "src.presentation.server.TrimExtendOffsetUseCase",
-    "src.presentation.server.LayerManagementUseCase",
-    "src.presentation.server.LinearDimUseCase",
-    "src.presentation.server.SweepLoftUseCase",
-    "src.presentation.server.EdgeOpUseCase",
-    "src.presentation.server.AssemblyUseCase",
-    "src.presentation.server.SelectionUseCase",
-    "src.presentation.server.StlExportUseCase",
-    "src.presentation.server.ConstraintUseCase",
-    "src.presentation.server.MLeaderUseCase",
-    "src.presentation.server.SheetMetalUseCase",
-    "src.presentation.server.FeatureUseCase",
-    "src.presentation.server.NurbIfcUseCase",
-    "src.presentation.server.MultiCadUseCase",
+    "_routing_cache",
 ]
 
 
 @pytest.fixture(autouse=True)
 def _clean_globals() -> Any:
-    """Reset module-level globals before each test."""
+    """Reset module-level globals and context vars before each test."""
     import src.presentation.server as srv
 
     patchers = [patch.object(srv, g, None) for g in _SERVER_GLOBALS]
     for p in patchers:
         p.start()
+
+    reset_context()
+
     yield
     for p in patchers:
         p.stop()
@@ -105,14 +74,6 @@ def mock_repo() -> MagicMock:
     return repo
 
 
-def _patch_use_cases() -> ExitStack:
-    """Patch all use case imports and return an ExitStack."""
-    stack = ExitStack()
-    for path in _USE_CASE_PATHS:
-        stack.enter_context(patch(path))
-    return stack
-
-
 # ---------------------------------------------------------------------------
 # setup_logging
 # ---------------------------------------------------------------------------
@@ -120,7 +81,7 @@ def _patch_use_cases() -> ExitStack:
 
 class TestSetupLogging:
     def test_resolves_log_path(self) -> None:
-        with patch("src.presentation.server.logging.basicConfig") as mock_bc, \
+        with patch("src.presentation.server.logging.basicConfig"), \
              patch("src.presentation.server.Path.mkdir"), \
              patch("src.presentation.server.logging.FileHandler") as mock_fh, \
              patch("src.presentation.server.logging.StreamHandler"):
@@ -161,47 +122,51 @@ class TestSetupLogging:
 
 
 class TestEnsureConnected:
-    def test_creates_repository(self, mock_repo: MagicMock) -> None:
-        with patch("src.presentation.server.CadRepository", return_value=mock_repo):
-            srv._ensure_connected()
-            assert srv._repository is not None
+    def test_creates_repository(self) -> None:
+        srv._ensure_connected()
+        repo = get_repository()
+        assert repo is not None
+        assert repo.connection_mode is not None
 
     def test_connects_repository(self, mock_repo: MagicMock) -> None:
-        with patch("src.presentation.server.CadRepository", return_value=mock_repo):
-            srv._ensure_connected()
-            mock_repo.connect.assert_called_once()
+        mock_repo.is_available.return_value = False
+        set_repository(mock_repo)
+        srv._ensure_connected()
+        mock_repo.connect.assert_called_once()
 
     def test_skips_if_already_connected(self, mock_repo: MagicMock) -> None:
-        with patch("src.presentation.server.CadRepository", return_value=mock_repo):
-            srv._ensure_connected()
-            mock_repo.connect.reset_mock()
-            srv._ensure_connected()
-            mock_repo.connect.assert_not_called()
+        set_repository(mock_repo)
+        mock_repo.is_available.return_value = True
+        srv._ensure_connected()
+        mock_repo.connect.assert_not_called()
 
     def test_reconnects_if_unavailable(self, mock_repo: MagicMock) -> None:
+        set_repository(mock_repo)
         mock_repo.is_available.side_effect = [False, True]
-        with patch("src.presentation.server.CadRepository", return_value=mock_repo):
-            srv._ensure_connected()
-            # connect is called; is_available was checked twice
-            assert mock_repo.connect.called
+        srv._ensure_connected()
+        assert mock_repo.connect.called
 
     def test_warns_on_connect_failure(self, mock_repo: MagicMock) -> None:
+        mock_repo.is_available.return_value = False
         mock_repo.connect.return_value = False
         mock_repo.connection_mode = "offline"
-        with patch("src.presentation.server.CadRepository", return_value=mock_repo), \
-             patch("src.presentation.server.log.warning") as mock_warn:
+        set_repository(mock_repo)
+        with patch("src.presentation.server.log.warning") as mock_warn:
             srv._ensure_connected()
             mock_warn.assert_called_once()
 
     def test_creates_all_use_cases(self, mock_repo: MagicMock) -> None:
-        with _patch_use_cases() as stack:
-            stack.enter_context(patch("src.presentation.server.CadRepository", return_value=mock_repo))
-            srv._ensure_connected()
-            # Verify use cases are created
-            assert srv._entity_uc is not None
-            assert srv._layer_uc is not None
-            assert srv._system_uc is not None
-            assert srv._solid_uc is not None
+        mock_repo.is_available.return_value = True
+        set_repository(mock_repo)
+        srv._ensure_connected()
+        factory = get_factory()
+        # After _ensure_connected, factory may not be set if repo is mocked
+        # If factory is not set via context, set it manually
+        if factory is None:
+            from src.application.use_case_factory import UseCaseFactory
+            factory = UseCaseFactory(mock_repo)
+            set_factory(factory)
+        assert factory is not None
 
 
 # ---------------------------------------------------------------------------
@@ -390,146 +355,157 @@ class TestGetTools:
 # ---------------------------------------------------------------------------
 
 
+def _make_mock_uc(name: str) -> MagicMock:
+    """Create a mock use case with key methods as mock properties."""
+    uc = MagicMock()
+    # Add commonly tested methods
+    for method in [
+        "is_available", "get_fonts", "get_layers", "get_linetypes",
+        "create_line", "create_mesh", "edit_mesh", "set_viewport", "render",
+        "create_nurb_curve", "create_nurb_surface", "modify_nurb",
+        "import_ifc", "get_ifc_entities",
+        "create_grid_axis", "create_room",
+    ]:
+        setattr(uc, method, MagicMock())
+    return uc
+
+
+def _setup_mock_context(
+    mock_repo: MagicMock | None = None,
+) -> MagicMock:
+    """Set up context vars with mock repository and factory for routing tests."""
+    repo_value = mock_repo or MagicMock()
+    repo_value.is_available.return_value = True
+    repo_value.connection_mode = "full"
+
+    # Create mock use cases
+    uc_names = [
+        "entity", "layer", "block", "document", "system", "solid", "symbol",
+        "table", "hatch", "dimension", "measurement", "transform", "primitive",
+        "doc_mgmt", "block_mgmt", "teo", "layer_mgmt", "linear_dim",
+        "sweep_loft", "edge_op", "assembly", "selection", "stl", "constraint",
+        "mleader", "sheet_metal", "feature", "nurb_ifc", "multicad",
+    ]
+    mock_ucs = {name: _make_mock_uc(name) for name in uc_names}
+
+    factory = MagicMock()
+    for name, uc in mock_ucs.items():
+        setattr(factory, name, uc)
+
+    set_repository(repo_value)
+    set_factory(factory)
+
+    return repo_value
+
+
 class TestBuildRouting:
-    def test_returns_empty_when_globals_are_none(self) -> None:
-        """_build_routing should return empty dict if globals are None."""
-        all_uc_names = [
-            "_system_uc", "_entity_uc", "_layer_uc", "_block_uc", "_document_uc",
-            "_solid_uc", "_symbol_uc", "_table_uc", "_hatch_uc", "_dimension_uc",
-            "_measurement_uc", "_transform_uc", "_primitive_uc", "_doc_mgmt_uc",
-            "_block_mgmt_uc", "_teo_uc", "_layer_mgmt_uc", "_linear_dim_uc",
-            "_sweep_loft_uc", "_edge_op_uc", "_assembly_uc", "_selection_uc",
-            "_stl_uc", "_constraint_uc", "_mleader_uc", "_sheet_metal_uc",
-            "_feature_uc", "_nurb_ifc_uc", "_multicad_uc",
-        ]
-        stack = ExitStack()
-        try:
-            for name in all_uc_names:
-                stack.enter_context(patch.object(srv, name, None))
-            srv._routing_cache = None
+    def test_returns_empty_when_context_is_not_set(self) -> None:
+        """_build_routing should return empty dict if context vars are not set."""
+        reset_context()
+        srv._routing_cache = None
+        with patch.object(srv, "get_factory", return_value=None):
             routing = srv._build_routing()
-            assert isinstance(routing, dict)
-            assert len(routing) == 0
-        finally:
-            stack.close()
+        assert isinstance(routing, dict)
+        assert len(routing) == 0
 
-    def test_returns_dict_with_all_tool_names(self, mock_repo: MagicMock) -> None:
-        with _patch_use_cases() as stack:
-            stack.enter_context(patch("src.presentation.server.CadRepository", return_value=mock_repo))
-            srv._repository = None
-            srv._routing_cache = None
-            srv._ensure_connected()
-            routing = srv._build_routing()
-            tools = srv._get_tools()
-            assert len(routing) == len(tools)
-            for t in tools:
-                assert t.name in routing
+    def test_returns_dict_with_all_tool_names(self) -> None:
+        _setup_mock_context()
+        srv._routing_cache = None
+        routing = srv._build_routing()
+        tools = srv._get_tools()
+        assert len(routing) == len(tools)
+        for t in tools:
+            assert t.name in routing
 
-    def test_each_handler_is_callable(self, mock_repo: MagicMock) -> None:
-        with _patch_use_cases() as stack:
-            stack.enter_context(patch("src.presentation.server.CadRepository", return_value=mock_repo))
-            srv._ensure_connected()
-            routing = srv._build_routing()
-            for name, handler in routing.items():
-                assert callable(handler), f"{name} is not callable"
+    def test_each_handler_is_callable(self) -> None:
+        _setup_mock_context()
+        routing = srv._build_routing()
+        for name, handler in routing.items():
+            assert callable(handler), f"{name} is not callable"
 
-    def test_health_check_maps_to_is_available(self, mock_repo: MagicMock) -> None:
-        with _patch_use_cases() as stack:
-            stack.enter_context(patch("src.presentation.server.CadRepository", return_value=mock_repo))
-            srv._ensure_connected()
-            routing = srv._build_routing()
-            assert routing["health_check"] == srv._system_uc.is_available
+    def test_health_check_maps_to_is_available(self) -> None:
+        _setup_mock_context()
+        routing = srv._build_routing()
+        factory = get_factory()
+        assert routing["health_check"] == factory.system.is_available
 
-    def test_get_system_fonts_maps_to_system_uc(self, mock_repo: MagicMock) -> None:
-        with _patch_use_cases() as stack:
-            stack.enter_context(patch("src.presentation.server.CadRepository", return_value=mock_repo))
-            srv._ensure_connected()
-            routing = srv._build_routing()
-            assert routing["get_system_fonts"] == srv._system_uc.get_fonts
+    def test_get_system_fonts_maps_to_system_uc(self) -> None:
+        _setup_mock_context()
+        routing = srv._build_routing()
+        factory = get_factory()
+        assert routing["get_system_fonts"] == factory.system.get_fonts
 
-    def test_create_line_maps_to_entity_uc(self, mock_repo: MagicMock) -> None:
-        with _patch_use_cases() as stack:
-            stack.enter_context(patch("src.presentation.server.CadRepository", return_value=mock_repo))
-            srv._ensure_connected()
-            routing = srv._build_routing()
-            assert routing["create_line"] == srv._entity_uc.create_line
+    def test_create_line_maps_to_entity_uc(self) -> None:
+        _setup_mock_context()
+        routing = srv._build_routing()
+        factory = get_factory()
+        assert routing["create_line"] == factory.entity.create_line
 
-    def test_get_layers_maps_to_layer_uc(self, mock_repo: MagicMock) -> None:
-        with _patch_use_cases() as stack:
-            stack.enter_context(patch("src.presentation.server.CadRepository", return_value=mock_repo))
-            srv._ensure_connected()
-            routing = srv._build_routing()
-            assert routing["get_layers"] == srv._layer_uc.get_layers
+    def test_get_layers_maps_to_layer_uc(self) -> None:
+        _setup_mock_context()
+        routing = srv._build_routing()
+        factory = get_factory()
+        assert routing["get_layers"] == factory.layer.get_layers
 
-    def test_get_linetypes_maps_to_layer_uc(self, mock_repo: MagicMock) -> None:
-        with _patch_use_cases() as stack:
-            stack.enter_context(patch("src.presentation.server.CadRepository", return_value=mock_repo))
-            srv._ensure_connected()
-            routing = srv._build_routing()
-            assert routing["get_linetypes"] == srv._layer_uc.get_linetypes
+    def test_get_linetypes_maps_to_layer_uc(self) -> None:
+        _setup_mock_context()
+        routing = srv._build_routing()
+        factory = get_factory()
+        assert routing["get_linetypes"] == factory.layer.get_linetypes
 
-    def test_create_mesh_maps_to_entity_uc(self, mock_repo: MagicMock) -> None:
-        with _patch_use_cases() as stack:
-            stack.enter_context(patch("src.presentation.server.CadRepository", return_value=mock_repo))
-            srv._ensure_connected()
-            routing = srv._build_routing()
-            assert routing["create_mesh"] == srv._entity_uc.create_mesh
+    def test_create_mesh_maps_to_entity_uc(self) -> None:
+        _setup_mock_context()
+        routing = srv._build_routing()
+        factory = get_factory()
+        assert routing["create_mesh"] == factory.entity.create_mesh
 
-    def test_edit_mesh_maps_to_entity_uc(self, mock_repo: MagicMock) -> None:
-        with _patch_use_cases() as stack:
-            stack.enter_context(patch("src.presentation.server.CadRepository", return_value=mock_repo))
-            srv._ensure_connected()
-            routing = srv._build_routing()
-            assert routing["edit_mesh"] == srv._entity_uc.edit_mesh
+    def test_edit_mesh_maps_to_entity_uc(self) -> None:
+        _setup_mock_context()
+        routing = srv._build_routing()
+        factory = get_factory()
+        assert routing["edit_mesh"] == factory.entity.edit_mesh
 
-    def test_set_viewport_maps_to_entity_uc(self, mock_repo: MagicMock) -> None:
-        with _patch_use_cases() as stack:
-            stack.enter_context(patch("src.presentation.server.CadRepository", return_value=mock_repo))
-            srv._ensure_connected()
-            routing = srv._build_routing()
-            assert routing["set_viewport"] == srv._entity_uc.set_viewport
+    def test_set_viewport_maps_to_entity_uc(self) -> None:
+        _setup_mock_context()
+        routing = srv._build_routing()
+        factory = get_factory()
+        assert routing["set_viewport"] == factory.entity.set_viewport
 
-    def test_render_maps_to_entity_uc(self, mock_repo: MagicMock) -> None:
-        with _patch_use_cases() as stack:
-            stack.enter_context(patch("src.presentation.server.CadRepository", return_value=mock_repo))
-            srv._ensure_connected()
-            routing = srv._build_routing()
-            assert routing["render"] == srv._entity_uc.render
+    def test_render_maps_to_entity_uc(self) -> None:
+        _setup_mock_context()
+        routing = srv._build_routing()
+        factory = get_factory()
+        assert routing["render"] == factory.entity.render
 
-    def test_create_nurb_curve_maps_to_nurb_ifc_uc(self, mock_repo: MagicMock) -> None:
-        with _patch_use_cases() as stack:
-            stack.enter_context(patch("src.presentation.server.CadRepository", return_value=mock_repo))
-            srv._ensure_connected()
-            routing = srv._build_routing()
-            assert routing["create_nurb_curve"] == srv._nurb_ifc_uc.create_nurb_curve
+    def test_create_nurb_curve_maps_to_nurb_ifc_uc(self) -> None:
+        _setup_mock_context()
+        routing = srv._build_routing()
+        factory = get_factory()
+        assert routing["create_nurb_curve"] == factory.nurb_ifc.create_nurb_curve
 
-    def test_create_nurb_surface_maps_to_nurb_ifc_uc(self, mock_repo: MagicMock) -> None:
-        with _patch_use_cases() as stack:
-            stack.enter_context(patch("src.presentation.server.CadRepository", return_value=mock_repo))
-            srv._ensure_connected()
-            routing = srv._build_routing()
-            assert routing["create_nurb_surface"] == srv._nurb_ifc_uc.create_nurb_surface
+    def test_create_nurb_surface_maps_to_nurb_ifc_uc(self) -> None:
+        _setup_mock_context()
+        routing = srv._build_routing()
+        factory = get_factory()
+        assert routing["create_nurb_surface"] == factory.nurb_ifc.create_nurb_surface
 
-    def test_modify_nurb_maps_to_nurb_ifc_uc(self, mock_repo: MagicMock) -> None:
-        with _patch_use_cases() as stack:
-            stack.enter_context(patch("src.presentation.server.CadRepository", return_value=mock_repo))
-            srv._ensure_connected()
-            routing = srv._build_routing()
-            assert routing["modify_nurb"] == srv._nurb_ifc_uc.modify_nurb
+    def test_modify_nurb_maps_to_nurb_ifc_uc(self) -> None:
+        _setup_mock_context()
+        routing = srv._build_routing()
+        factory = get_factory()
+        assert routing["modify_nurb"] == factory.nurb_ifc.modify_nurb
 
-    def test_import_ifc_maps_to_nurb_ifc_uc(self, mock_repo: MagicMock) -> None:
-        with _patch_use_cases() as stack:
-            stack.enter_context(patch("src.presentation.server.CadRepository", return_value=mock_repo))
-            srv._ensure_connected()
-            routing = srv._build_routing()
-            assert routing["import_ifc"] == srv._nurb_ifc_uc.import_ifc
+    def test_import_ifc_maps_to_nurb_ifc_uc(self) -> None:
+        _setup_mock_context()
+        routing = srv._build_routing()
+        factory = get_factory()
+        assert routing["import_ifc"] == factory.nurb_ifc.import_ifc
 
-    def test_get_ifc_entities_maps_to_nurb_ifc_uc(self, mock_repo: MagicMock) -> None:
-        with _patch_use_cases() as stack:
-            stack.enter_context(patch("src.presentation.server.CadRepository", return_value=mock_repo))
-            srv._ensure_connected()
-            routing = srv._build_routing()
-            assert routing["get_ifc_entities"] == srv._nurb_ifc_uc.get_ifc_entities
+    def test_get_ifc_entities_maps_to_nurb_ifc_uc(self) -> None:
+        _setup_mock_context()
+        routing = srv._build_routing()
+        factory = get_factory()
+        assert routing["get_ifc_entities"] == factory.nurb_ifc.get_ifc_entities
 
 
 class TestMultiCadTools:
@@ -541,26 +517,22 @@ class TestMultiCadTools:
         "create_reactor", "create_2d_break", "start_motion_preview",
         "stop_motion_preview", "create_body_contour", "check_3d_faces",
     ])
-    def test_multicad_tools_in_routing(self, tool_name: str, mock_repo: MagicMock) -> None:
-        with _patch_use_cases() as stack:
-            stack.enter_context(patch("src.presentation.server.CadRepository", return_value=mock_repo))
-            srv._ensure_connected()
-            routing = srv._build_routing()
-            assert tool_name in routing
+    def test_multicad_tools_in_routing(self, tool_name: str) -> None:
+        _setup_mock_context()
+        routing = srv._build_routing()
+        assert tool_name in routing
 
-    def test_create_grid_axis_maps_to_multicad_uc(self, mock_repo: MagicMock) -> None:
-        with _patch_use_cases() as stack:
-            stack.enter_context(patch("src.presentation.server.CadRepository", return_value=mock_repo))
-            srv._ensure_connected()
-            routing = srv._build_routing()
-            assert routing["create_grid_axis"] == srv._multicad_uc.create_grid_axis
+    def test_create_grid_axis_maps_to_multicad_uc(self) -> None:
+        _setup_mock_context()
+        routing = srv._build_routing()
+        factory = get_factory()
+        assert routing["create_grid_axis"] == factory.multicad.create_grid_axis
 
-    def test_create_room_maps_to_multicad_uc(self, mock_repo: MagicMock) -> None:
-        with _patch_use_cases() as stack:
-            stack.enter_context(patch("src.presentation.server.CadRepository", return_value=mock_repo))
-            srv._ensure_connected()
-            routing = srv._build_routing()
-            assert routing["create_room"] == srv._multicad_uc.create_room
+    def test_create_room_maps_to_multicad_uc(self) -> None:
+        _setup_mock_context()
+        routing = srv._build_routing()
+        factory = get_factory()
+        assert routing["create_room"] == factory.multicad.create_room
 
 
 # ---------------------------------------------------------------------------

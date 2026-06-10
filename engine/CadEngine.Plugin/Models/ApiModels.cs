@@ -317,6 +317,7 @@ namespace CadEngine
     {
         public bool Success { get; set; } = true;
         public string? Error { get; set; }
+        public string? Handle { get; set; }
     }
 
     public class ErrorResponse

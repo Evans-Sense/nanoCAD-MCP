@@ -193,7 +193,7 @@ server/src/
 ```powershell
 cd server
 
-# Все тесты (777 unit + 222 integration)
+# Все тесты (923 unit + 19 contract + 189 integration)
 py -m pytest tests/ -v
 
 # Только unit-тесты
@@ -206,7 +206,7 @@ py -m pytest tests/unit/ -v --cov=src --cov-report=term-missing
 py -m pytest tests/integration/ -v
 ```
 
-**Статус:** 777 unit ✅ | 189 integration ✅ | 33 skipped (Plus/Pro) | 51 MCP server ✅
+**Статус:** 923 unit ✅ | 189 integration ✅ | 33 skipped (Plus/Pro) | 19 contract ✅ | 86% coverage
 
 ## Линтинг
 

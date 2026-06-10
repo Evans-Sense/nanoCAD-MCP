@@ -23,7 +23,6 @@ from src.domain.entities import (
 
 if TYPE_CHECKING:
     from src.domain.interfaces import ICadRepository
-    from src.infrastructure.http_bridge import HttpCadBridge
 
 logger = logging.getLogger(__name__)
 
@@ -229,10 +228,7 @@ class EntityUseCase:
         return {"handle": str(handle), "type": "SPLINE", "fit_points_count": len(fit_points)}
 
     def create_helix(self, **kwargs: Any) -> Any:
-        http = getattr(self._repo, "_http", None)
-        if not http or not http.is_available:
-            raise NotImplementedError("Requires .NET engine for helix")
-        return http.create_helix(
+        return self._repo.create_helix(
             center_x=kwargs.get("center_x", 0),
             center_y=kwargs.get("center_y", 0),
             center_z=kwargs.get("center_z", 0),
@@ -244,26 +240,17 @@ class EntityUseCase:
         )
 
     def create_region(self, **kwargs: Any) -> Any:
-        http = getattr(self._repo, "_http", None)
-        if not http or not http.is_available:
-            raise NotImplementedError("Requires .NET engine for region")
-        return http.create_region(curve_handles=kwargs["curve_handles"])
+        return self._repo.create_region(curve_handles=kwargs["curve_handles"])
 
     def create_boundary(self, **kwargs: Any) -> Any:
-        http = getattr(self._repo, "_http", None)
-        if not http or not http.is_available:
-            raise NotImplementedError("Requires .NET engine for boundary")
-        return http.create_boundary(
+        return self._repo.create_boundary(
             point_x=kwargs["point_x"],
             point_y=kwargs["point_y"],
             layer=kwargs.get("layer"),
         )
 
     def create_mesh(self, **kwargs: Any) -> Any:
-        http = getattr(self._repo, "_http", None)
-        if not http or not http.is_available:
-            raise NotImplementedError("Requires .NET engine for mesh")
-        return http.create_mesh(
+        return self._repo.create_mesh(
             vertices=kwargs["vertices"],
             face_indices=kwargs["face_indices"],
             smooth_level=kwargs.get("smooth_level", 0),
@@ -271,29 +258,20 @@ class EntityUseCase:
         )
 
     def edit_mesh(self, **kwargs: Any) -> Any:
-        http = getattr(self._repo, "_http", None)
-        if not http or not http.is_available:
-            raise NotImplementedError("Requires .NET engine for mesh")
-        return http.edit_mesh(
+        return self._repo.edit_mesh(
             handle=kwargs["handle"],
             vertices=kwargs.get("vertices"),
             subdivide=kwargs.get("subdivide"),
         )
 
     def set_viewport(self, **kwargs: Any) -> Any:
-        http = getattr(self._repo, "_http", None)
-        if not http or not http.is_available:
-            raise NotImplementedError("Requires .NET engine for viewport")
-        return http.set_viewport(
+        return self._repo.set_viewport(
             name=kwargs.get("name", "*Active"),
             vp_type=kwargs.get("vp_type", "single"),
         )
 
     def render(self, **kwargs: Any) -> Any:
-        http = getattr(self._repo, "_http", None)
-        if not http or not http.is_available:
-            raise NotImplementedError("Requires .NET engine for render")
-        return http.render(
+        return self._repo.render(
             output_file=kwargs.get("output_file"),
         )
 
@@ -375,10 +353,7 @@ class BlockUseCase:
         return {"success": success, "name": name}
 
     def get_block_entities(self, name: str) -> list[dict[str, Any]]:
-        http = getattr(self._repo, "_http", None)
-        if not http or not http.is_available:
-            raise NotImplementedError("Requires .NET engine for block entity listing")
-        return http.get_block_entities(name)
+        return self._repo.get_block_entities(name)
 
 
 class DocumentUseCase:
@@ -449,10 +424,7 @@ class DocumentUseCase:
         return {"success": True}
 
     def export_ifc(self, **kwargs: Any) -> Any:
-        http = getattr(self._repo, "_http", None)
-        if not http or not http.is_available:
-            raise NotImplementedError("Requires .NET engine for IFC export")
-        return http.export_ifc(path=kwargs["path"])
+        return self._repo.export_ifc(path=kwargs["path"])
 
 
 class SystemUseCase:
@@ -503,30 +475,19 @@ class SolidUseCase:
 
     def __init__(self, repo: ICadRepository) -> None:
         self._repo = repo
-        # Extract HTTP bridge from the repository internals.
-        # The ICadRepository interface doesn't expose 3D methods,
-        # so we reach into the concrete CadRepository._http.
-        http = getattr(repo, "_http", None)
-        if http is None:
-            msg = (
-                "SolidUseCase requires a CadRepository with an HTTP bridge. "
-                "Make sure the .NET engine plugin is loaded in nanoCAD."
-            )
-            raise RuntimeError(msg)
-        self._http: HttpCadBridge = http
 
     def create_box(self, x: float, y: float, z: float) -> dict[str, Any]:
-        handle = self._http.create_box(x, y, z)
+        handle = self._repo.create_box(x, y, z)
         return {"handle": handle, "type": "BOX"} if handle else {"error": "Failed to create box"}
 
     def create_sphere(self, radius: float) -> dict[str, Any]:
-        handle = self._http.create_sphere(radius)
+        handle = self._repo.create_sphere(radius)
         return (
             {"handle": handle, "type": "SPHERE"} if handle else {"error": "Failed to create sphere"}
         )
 
     def create_cylinder(self, radius: float, height: float) -> dict[str, Any]:
-        handle = self._http.create_cylinder(radius, height)
+        handle = self._repo.create_cylinder(radius, height)
         return (
             {"handle": handle, "type": "CYLINDER"}
             if handle
@@ -534,23 +495,23 @@ class SolidUseCase:
         )
 
     def create_cone(self, radius_bottom: float, height: float) -> dict[str, Any]:
-        handle = self._http.create_cone(radius_bottom, height)
+        handle = self._repo.create_cone(radius_bottom, height)
         return {"handle": handle, "type": "CONE"} if handle else {"error": "Failed to create cone"}
 
     def create_torus(self, major_radius: float, minor_radius: float) -> dict[str, Any]:
-        handle = self._http.create_torus(major_radius, minor_radius)
+        handle = self._repo.create_torus(major_radius, minor_radius)
         return (
             {"handle": handle, "type": "TORUS"} if handle else {"error": "Failed to create torus"}
         )
 
     def create_wedge(self, x: float, y: float, z: float) -> dict[str, Any]:
-        handle = self._http.create_wedge(x, y, z)
+        handle = self._repo.create_wedge(x, y, z)
         return (
             {"handle": handle, "type": "WEDGE"} if handle else {"error": "Failed to create wedge"}
         )
 
     def create_pyramid(self, height: float, sides: int, radius: float) -> dict[str, Any]:
-        handle = self._http.create_pyramid(height, sides, radius)
+        handle = self._repo.create_pyramid(height, sides, radius)
         return (
             {"handle": handle, "type": "PYRAMID"}
             if handle
@@ -558,13 +519,13 @@ class SolidUseCase:
         )
 
     def boolean_union(self, handle1: str, handle2: str) -> dict[str, Any]:
-        handle = self._http.boolean_union(handle1, handle2)
+        handle = self._repo.boolean_union(handle1, handle2)
         return (
             {"handle": handle, "type": "SOLID3D"} if handle else {"error": "Boolean union failed"}
         )
 
     def boolean_subtract(self, handle1: str, handle2: str) -> dict[str, Any]:
-        handle = self._http.boolean_subtract(handle1, handle2)
+        handle = self._repo.boolean_subtract(handle1, handle2)
         return (
             {"handle": handle, "type": "SOLID3D"}
             if handle
@@ -572,7 +533,7 @@ class SolidUseCase:
         )
 
     def boolean_intersect(self, handle1: str, handle2: str) -> dict[str, Any]:
-        handle = self._http.boolean_intersect(handle1, handle2)
+        handle = self._repo.boolean_intersect(handle1, handle2)
         return (
             {"handle": handle, "type": "SOLID3D"}
             if handle
@@ -580,7 +541,7 @@ class SolidUseCase:
         )
 
     def extrude_solid(self, handle: str, height: float, taper_angle: float = 0) -> dict[str, Any]:
-        new_handle = self._http.extrude_solid(handle, height, taper_angle)
+        new_handle = self._repo.extrude_solid(handle, height, taper_angle)
         return (
             {"handle": new_handle, "type": "SOLID3D"} if new_handle else {"error": "Extrude failed"}
         )
@@ -596,7 +557,7 @@ class SolidUseCase:
         dir_z: float = 1,
         angle: float = 360,
     ) -> dict[str, Any]:
-        new_handle = self._http.revolve_solid(
+        new_handle = self._repo.revolve_solid(
             handle, axis_x, axis_y, axis_z, dir_x, dir_y, dir_z, angle
         )
         return (
@@ -604,13 +565,13 @@ class SolidUseCase:
         )
 
     def move_solid(self, handle: str, dx: float, dy: float, dz: float = 0) -> dict[str, Any]:
-        success = self._http.move_solid(handle, dx, dy, dz)
+        success = self._repo.move_solid(handle, dx, dy, dz)
         return {"success": success, "handle": handle, "dx": dx, "dy": dy, "dz": dz}
 
     def set_3d_view(self, direction: str, render_mode: str = "wireframe") -> dict[str, Any]:
-        success = self._http.set_3d_view(direction, render_mode)
+        success = self._repo.set_3d_view(direction, render_mode)
         return {"success": success, "direction": direction, "render_mode": render_mode}
 
     def get_solid_properties(self, handle: str) -> dict[str, Any]:
-        props = self._http.get_solid_properties(handle)
+        props = self._repo.get_solid_properties(handle)
         return props or {}

@@ -1,8 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using HostMgd.ApplicationServices;
 using Teigha.DatabaseServices;
 using Teigha.Geometry;
+using Multicad;
+using Multicad.DatabaseServices;
+using Multicad.Mc3D;
 using App = HostMgd.ApplicationServices.Application;
 
 namespace CadEngine
@@ -203,7 +208,7 @@ namespace CadEngine
             return new SolidPropertiesResponse { Handle = h };
         }
 
-        // ── SWEEP / LOFT / FILLETEDGE / CHAMFEREDGE (command-based) ──
+        // ── SWEEP / LOFT (command-based) ──
         // These commands require Plus/Pro edition and crash free edition via SendCommand.
         // Return graceful error instead.
 
@@ -213,11 +218,157 @@ namespace CadEngine
         public SuccessResponse LoftSolid(string[] sectionHandles)
             => new SuccessResponse { Success = false, Error = "Loft not supported in this edition" };
 
+        // ── FILLET / CHAMFER (via MultiCAD API Mc3dSolid) ──
+
+        private (List<McObjectId> faceIds, List<McObjectId> edgeIds) GetFaceAndEdgeIds(McObjectId solidId)
+        {
+            try
+            {
+                // EntityGeomType enum (kPlaneSegment=2, kLine=1?) is in M3D.dll which
+                // can't be loaded for reflection (mt.dll dependency).
+                // Instead, scan int values 0-10 to find the correct face/edge producers.
+                var mi = typeof(Service).GetMethods(BindingFlags.Static | BindingFlags.Public)
+                    .First(m => m.Name == "GetLinkedFEVsToObject" && m.GetParameters().Length == 3);
+
+                // Scan to find face-producing enum value
+                List<McObjectId> faces = new List<McObjectId>();
+                for (int val = 0; val <= 10; val++)
+                {
+                    try
+                    {
+                        var raw = mi.Invoke(null, new object[] { solidId, val, true });
+                        var coll = raw as System.Collections.IEnumerable;
+                        if (coll != null)
+                        {
+                            var list = coll.Cast<McObjectId>().ToList();
+                            if (list.Count > 0) { faces = list; break; }
+                        }
+                    }
+                    catch { }
+                }
+
+                // For each face, scan 0-10 to find edge-producing enum value
+                var allEdges = new HashSet<McObjectId>();
+                foreach (var faceId in faces)
+                {
+                    for (int ev = 0; ev <= 10; ev++)
+                    {
+                        try
+                        {
+                            var ee = mi.Invoke(null, new object[] { faceId, ev, false });
+                            var ec = ee as System.Collections.IEnumerable;
+                            if (ec != null)
+                            {
+                                var el = ec.Cast<McObjectId>().ToList();
+                                if (el.Count > 0)
+                                {
+                                    foreach (var edgeId in el) allEdges.Add(edgeId);
+                                    break;
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+                }
+                return (faces, allEdges.ToList());
+            }
+            catch (Exception ex)
+            {
+                PluginEntry.DebugLog($"GetFaceAndEdgeIds failed: {ex.Message}");
+                return (new List<McObjectId>(), new List<McObjectId>());
+            }
+        }
+
+        /// <summary>
+        /// Apply fillet or chamfer: erase old solid, create new Mc3dSolid at same position,
+        /// apply feature, add to document, return new Handle from McObjectId.Handle.
+        /// </summary>
+        private SuccessResponse ApplyFeature(
+            string solidHandle,
+            Action<Mc3dSolid, List<McObjectId>> applyFeature)
+        {
+            var id = GetId(solidHandle);
+            if (id == null)
+                return new SuccessResponse { Success = false, Error = $"Solid not found: {solidHandle}" };
+
+            return MainThreadExecutor.Execute(() =>
+            {
+                try
+                {
+                    // Read dimensions and position of old solid
+                    double w, d, h;
+                    Point3d origin;
+                    using (var tr = Db.TransactionManager.StartTransaction())
+                    {
+                        var s = tr.GetObject(id.Value, OpenMode.ForRead) as Solid3d;
+                        if (s == null)
+                            return new SuccessResponse { Success = false, Error = "Not a Solid3d" };
+                        var ext = s.GeometricExtents;
+                        w = ext.MaxPoint.X - ext.MinPoint.X;
+                        d = ext.MaxPoint.Y - ext.MinPoint.Y;
+                        h = ext.MaxPoint.Z - ext.MinPoint.Z;
+                        origin = ext.MinPoint;
+                        tr.Commit();
+                    }
+                    if (w <= 0 || d <= 0 || h <= 0)
+                        return new SuccessResponse { Success = false, Error = "Cannot determine box dimensions" };
+
+                    // Erase old solid, create new Mc3dSolid at same position with feature applied
+                    using (var tr = Db.TransactionManager.StartTransaction())
+                    {
+                        var old = tr.GetObject(id.Value, OpenMode.ForWrite) as Entity;
+                        old?.Erase(true);
+                        tr.Commit();
+                    }
+
+                    var mcSolid = new Mc3dSolid();
+                    mcSolid.GetSolidBody().MakeBox(
+                        new Multicad.Geometry.Point3d(origin.X, origin.Y, origin.Z), w, d, h);
+                    McObjectManager.Add2Document(mcSolid.DbEntity);
+                    McObjectManager.UpdateAll();
+
+                    var (_, edgeIds) = GetFaceAndEdgeIds(mcSolid.ID);
+                    if (edgeIds.Count == 0)
+                        return new SuccessResponse { Success = false, Error = "No edges found on solid" };
+
+                    applyFeature(mcSolid, edgeIds);
+                    McObjectManager.UpdateAll();
+
+                    var handleStr = mcSolid.ID.Handle.ToString("X");
+                    return new SuccessResponse { Success = true, Handle = handleStr };
+                }
+                catch (Exception ex)
+                {
+                    PluginEntry.DebugLog($"ApplyFeature failed: {ex.Message}");
+                    return new SuccessResponse { Success = false, Error = ex.Message };
+                }
+            }) as SuccessResponse ?? new SuccessResponse { Success = false, Error = "Main thread executor returned null" };
+        }
+
         public SuccessResponse FilletEdgeSolid(string solidHandle, double radius)
-            => new SuccessResponse { Success = false, Error = "FilletEdge not supported in this edition" };
+        {
+            return ApplyFeature(solidHandle, (mcSolid, edgeIds) =>
+            {
+                var fillet = mcSolid.AddFilletFeature(edgeIds, radius);
+                fillet.DbEntity.AddToCurrentDocument();
+                McObjectManager.UpdateAll();
+            });
+        }
 
         public SuccessResponse ChamferEdgeSolid(string solidHandle, double dist1, double dist2)
-            => new SuccessResponse { Success = false, Error = "ChamferEdge not supported in this edition" };
+        {
+            return ApplyFeature(solidHandle, (mcSolid, edgeIds) =>
+            {
+                var chamfer = new ChamferFeature();
+                chamfer.ChamferType = ChamferType.TwoDistances;
+                chamfer.SetEdges(edgeIds);
+                chamfer.Distance = dist1;
+                chamfer.Distance2 = dist2;
+                chamfer.DbEntity.AddToCurrentDocument();
+                chamfer.DbEntity.Update();
+                McObjectManager.UpdateAll();
+            });
+        }
 
         // ── Assembly / Constraints (command-based) ──
         // These require Plus/Pro edition.
